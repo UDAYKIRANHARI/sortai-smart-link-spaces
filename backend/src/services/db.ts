@@ -56,7 +56,7 @@ function initializeFirebase(): void {
   // Fallback: initialise without credentials (works with emulator or
   // Application Default Credentials in GCP)
   admin.initializeApp({
-    projectId: process.env.GCLOUD_PROJECT || "sortai-local",
+    projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "sortai-local",
   });
   console.warn(
     "[DB] Firebase Admin initialised WITHOUT service-account credentials (emulator / local dev)"
