@@ -192,6 +192,17 @@ export async function classifyLink(
   }
 }
 
+function containsWord(text: string, keywords: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return keywords.some(keyword => {
+    // Escape regex characters
+    const escaped = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    // Enforce word boundaries
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    return regex.test(normalized);
+  });
+}
+
 /**
  * Fallback classification method that uses keyword-based heuristics when Gemini API is rate-limited or unavailable.
  */
@@ -214,133 +225,50 @@ export function heuristicClassifyLink(metadata: NormalizedMetadata): Classificat
     reason = `Saved from ${source} for entertainment or reference.`;
   }
 
-  if (
-    content.includes("job") ||
-    content.includes("career") ||
-    content.includes("resume") ||
-    content.includes("interview") ||
-    content.includes("linkedin") ||
-    content.includes("hire") ||
-    content.includes("recruiter")
-  ) {
+  // Keywords lists with word boundaries applied via containsWord
+  const careerKeywords = ["job", "jobs", "career", "careers", "resume", "resumes", "interview", "interviews", "linkedin", "hire", "hiring", "recruiter", "recruiters", "internship", "internships"];
+  const studyKeywords = ["course", "courses", "study", "studying", "tutorial", "tutorials", "class", "classes", "learn", "learning", "education", "lecture", "lectures", "academy", "doc", "docs", "documentation"];
+  const fashionKeywords = ["fashion", "style", "wear", "clothing", "shoes", "outfit", "outfits", "apparel", "boutique", "makeup", "beauty", "dress", "dresses", "wardrobe", "sneakers"];
+  const fitnessKeywords = ["fit", "fitness", "workout", "workouts", "gym", "nutrition", "diet", "health", "exercise", "exercises", "wellness", "sports", "yoga", "training", "calorie", "calories"];
+  const toolsKeywords = ["editor", "builder", "saas", "utility", "utilities", "figma", "canva", "wix", "tool", "tools", "dashboard", "dashboards", "creator", "app", "apps", "platform", "platforms", "calculator", "calculators", "converter", "converters", "generator", "generators", "ai tool", "ai tools", "chatgpt", "gemini", "claude", "copilot", "notion", "spreadsheet", "excel"];
+  const techKeywords = ["code", "coding", "programming", "tech", "technology", "software", "ai", "artificial intelligence", "github", "developer", "developers", "engineering", "api", "apis", "database", "frontend", "backend", "webdev", "computer", "gadget", "gadgets", "hardware"];
+  const entertainmentKeywords = ["movie", "movies", "music", "game", "games", "gaming", "song", "songs", "video", "videos", "netflix", "youtube", "entertainment", "comedy", "show", "shows", "reel", "reels", "meme", "memes", "fun", "funny", "tiktok", "instagram", "facebook", "vlog", "vlogs"];
+  const lifeKeywords = ["travel", "recipe", "recipes", "cook", "cooking", "money", "finance", "finances", "life", "lifestyle", "productivity", "hobby", "hobbies", "blog", "blogs", "relationships", "marriage", "parenting", "house", "home"];
+  const webKeywords = ["login", "signin", "signup", "register", "registration", "auth", "account", "portal", "form", "forms", "submit", "apply"];
+
+  if (containsWord(content, careerKeywords)) {
     space = "Career";
     tags = ["career", "work", "professional", "jobs"];
     reason = "Contains helpful information for career development and professional growth.";
-  } else if (
-    content.includes("course") ||
-    content.includes("study") ||
-    content.includes("tutorial") ||
-    content.includes("class") ||
-    content.includes("learn") ||
-    content.includes("education") ||
-    content.includes("lecture") ||
-    content.includes("academy")
-  ) {
+  } else if (containsWord(content, studyKeywords)) {
     space = "Study";
     tags = ["education", "study", "learning", "tutorial"];
     reason = "Useful tutorial or educational resource for studying and learning.";
-  } else if (
-    content.includes("fashion") ||
-    content.includes("wear") ||
-    content.includes("clothing") ||
-    content.includes("style") ||
-    content.includes("shoes") ||
-    content.includes("outfit") ||
-    content.includes("apparel") ||
-    content.includes("boutique")
-  ) {
+  } else if (containsWord(content, fashionKeywords)) {
     space = "Fashion";
     tags = ["fashion", "style", "trends", "clothing"];
     reason = "Style inspiration, clothing collection, or fashion trend highlight.";
-  } else if (
-    content.includes("fit") ||
-    content.includes("workout") ||
-    content.includes("gym") ||
-    content.includes("nutrition") ||
-    content.includes("diet") ||
-    content.includes("health") ||
-    content.includes("exercise") ||
-    content.includes("wellness")
-  ) {
+  } else if (containsWord(content, fitnessKeywords)) {
     space = "Fitness";
     tags = ["fitness", "health", "workout", "wellness"];
     reason = "Saved for fitness routines, nutrition guides, or healthy living tips.";
-  } else if (
-    content.includes("editor") ||
-    content.includes("builder") ||
-    content.includes("saas") ||
-    content.includes("utility") ||
-    content.includes("figma") ||
-    content.includes("canva") ||
-    content.includes("wix") ||
-    content.includes("tool") ||
-    content.includes("dashboard") ||
-    content.includes("creator") ||
-    content.includes("app.") ||
-    content.includes("platform") ||
-    content.includes("calculator") ||
-    content.includes("converter") ||
-    content.includes("generator") ||
-    content.includes("ai tool") ||
-    content.includes("chatgpt") ||
-    content.includes("gemini")
-  ) {
+  } else if (containsWord(content, toolsKeywords)) {
     space = "Tools";
     tags = ["tool", "utility", "saas", "software"];
     reason = "Useful online tool, editor, generator, or software utility.";
-  } else if (
-    content.includes("code") ||
-    content.includes("programming") ||
-    content.includes("tech") ||
-    content.includes("software") ||
-    content.includes("ai") ||
-    content.includes("github") ||
-    content.includes("developer") ||
-    content.includes("engineering") ||
-    content.includes("api")
-  ) {
+  } else if (containsWord(content, techKeywords)) {
     space = "Tech";
     tags = ["tech", "coding", "software", "developer"];
     reason = "Contains dev tools, coding references, or technical updates.";
-  } else if (
-    content.includes("movie") ||
-    content.includes("music") ||
-    content.includes("game") ||
-    content.includes("song") ||
-    content.includes("video") ||
-    content.includes("netflix") ||
-    content.includes("youtube") ||
-    content.includes("entertainment") ||
-    content.includes("comedy") ||
-    content.includes("show")
-  ) {
+  } else if (containsWord(content, entertainmentKeywords)) {
     space = "Entertainment";
     tags = ["entertainment", "media", "video", "fun"];
     reason = "Saved for casual viewing, entertainment, or leisure.";
-  } else if (
-    content.includes("travel") ||
-    content.includes("recipe") ||
-    content.includes("cook") ||
-    content.includes("money") ||
-    content.includes("finance") ||
-    content.includes("life") ||
-    content.includes("productivity") ||
-    content.includes("hobby") ||
-    content.includes("blog")
-  ) {
+  } else if (containsWord(content, lifeKeywords)) {
     space = "Life";
     tags = ["life", "lifestyle", "personal", "general"];
     reason = "Personal interest, life organization, or daily productivity guide.";
-  } else if (
-    content.includes("login") ||
-    content.includes("signin") ||
-    content.includes("signup") ||
-    content.includes("register") ||
-    content.includes("auth") ||
-    content.includes("account") ||
-    content.includes("portal") ||
-    content.includes("form")
-  ) {
+  } else if (containsWord(content, webKeywords)) {
     space = "Web links";
     tags = ["login", "register", "web", "account"];
     reason = "Web portal login, sign-up form, or account landing page.";
