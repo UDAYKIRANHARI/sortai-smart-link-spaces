@@ -15,7 +15,7 @@ const app = express();
 const PORT = parseInt(process.env.PORT || "8080", 10);
 
 // ---------------------------------------------------------------------------
-// CORS – allow the Vite dev server and all origins during development
+// CORS – allow the Vite dev server and production Firebase Hosting origins
 // ---------------------------------------------------------------------------
 app.use(
   cors({
@@ -23,6 +23,8 @@ app.use(
       "http://localhost:5173",
       "http://127.0.0.1:5173",
       "http://localhost:3000",
+      "https://sortai-c4f60.web.app",
+      "https://sortai-c4f60.firebaseapp.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
