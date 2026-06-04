@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════
+   SortAi — Global Styles
+   ═══════════════════════════════════════════ */
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Base body */
+body {
+  background-color: #000000;
+  color: #E2E2E2;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ─── Custom Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6A6A6A;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 #000000;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(181, 181, 181, 0.25);
+  color: #F7F7F7;
+}
+
+/* ─── Utility Classes ─── */
+@layer utilities {
+  /* Glassmorphism */
+  .glass {
+    background: rgba(17, 17, 17, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(106, 106, 106, 0.2);
+  }
+
+  .glass-heavy {
+    background: rgba(17, 17, 17, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(106, 106, 106, 0.3);
+  }
+
+  /* Gradients */
+  .gradient-radial {
+    background: radial-gradient(ellipse at center, var(--tw-gradient-from), var(--tw-gradient-to));
+  }
+
+  .gradient-mesh {
+    background:
+      radial-gradient(at 20% 20%, rgba(106, 106, 106, 0.08) 0px, transparent 50%),
+      radial-gradient(at 80% 80%, rgba(181, 181, 181, 0.05) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(106, 106, 106, 0.03) 0px, transparent 70%);
+  }
+
+  .gradient-border {
+    position: relative;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(106, 106, 106, 0.4), rgba(106, 106, 106, 0.1), rgba(106, 106, 106, 0.4));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: #1a1a1a;
+    border-radius: 8px;
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(106, 106, 106, 0.15),
+      transparent
+    );
+    animation: shimmer 1.8s infinite;
+  }
+
+  /* Pulse dot */
+  .pulse-dot {
+    animation: pulseDot 1.4s ease-in-out infinite;
+  }
+
+  .pulse-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .pulse-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+/* ─── Keyframes ─── */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulseDot {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hexFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translateY(-30px) rotate(15deg);
+    opacity: 0.3;
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* ─── Transition Defaults ─── */
+a, button, input, textarea {
+  transition: all 0.2s ease;
+}
+
+/* ─── Focus Visible ─── */
+*:focus-visible {
+  outline: 2px solid rgba(181, 181, 181, 0.5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove spinner from number input */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
