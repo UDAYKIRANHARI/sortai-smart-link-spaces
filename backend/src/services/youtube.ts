@@ -1,5 +1,5 @@
-import axios from "axios";
 import { NormalizedMetadata } from "./scraper";
+import { getWithRetry } from "./http";
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
@@ -106,13 +106,12 @@ export async function getYouTubeMetadata(
 
   try {
     const apiUrl = "https://www.googleapis.com/youtube/v3/videos";
-    const { data } = await axios.get<YouTubeApiResponse>(apiUrl, {
+    const { data } = await getWithRetry<YouTubeApiResponse>(apiUrl, {
       params: {
         part: "snippet",
         id: videoId,
         key: YOUTUBE_API_KEY,
       },
-      timeout: 10_000,
     });
 
     if (!data.items || data.items.length === 0) {

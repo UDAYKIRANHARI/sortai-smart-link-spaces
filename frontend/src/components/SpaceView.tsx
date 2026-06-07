@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { ApiError, apiFetch } from '../lib/api';
 import SearchBar from './SearchBar';
 import LinkCard, { type LinkData } from './LinkCard';
 import {
@@ -16,8 +17,6 @@ import {
   Wrench,
   Globe,
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 interface SpaceViewProps {
   space: string;
@@ -51,13 +50,40 @@ const SPACE_ACCENT: Record<string, string> = {
   other: 'from-sortai-white/[0.04]',
 };
 
+function mapLinks(data: unknown[], fallbackSpace: string): LinkData[] {
+  return (Array.isArray(data) ? data : []).map((value) => {
+    const item = value as Record<string, unknown>;
+    return ({
+    id: (item.id as string) || crypto.randomUUID(),
+    url: (item.url as string) || '',
+    title: (item.title as string) || 'Untitled',
+    description: (item.shortDescription as string) || (item.description as string) || '',
+    space: (item.space as string) || fallbackSpace,
+    tags: (item.tags as string[]) || [],
+    source: (item.source as string) || '',
+    thumbnail: (item.thumbnailUrl as string) || (item.imageUrl as string) || undefined,
+    confidence: ((item.confidence as string) || 'medium') as 'high' | 'medium' | 'low',
+    createdAt: (item.createdAt as string) || new Date().toISOString(),
+    });
+  });
+}
+
+function normalizeSpaceName(space: string): string {
+  return space
+    .split(' ')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: SpaceViewProps) {
-  const { user, getIdToken } = useAuth();
+  const { user, getIdToken, logout } = useAuth();
   const [links, setLinks] = useState<LinkData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const SpaceIcon = SPACE_ICONS[space] || Folder;
   const accentGradient = SPACE_ACCENT[space] || SPACE_ACCENT.other;
@@ -66,44 +92,50 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
     if (!user) return;
     setLoading(true);
     try {
-      const token = await getIdToken();
-      const capitalizedSpace = space.charAt(0).toUpperCase() + space.slice(1);
-      const response = await fetch(
-        `${API_URL}/api/links?userId=${encodeURIComponent(user.uid)}&space=${encodeURIComponent(capitalizedSpace)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const spaceLabel = normalizeSpaceName(space);
+      const data = await apiFetch<{ items: unknown[]; nextCursor: string | null }>(
+        `/api/links?space=${encodeURIComponent(spaceLabel)}&pageSize=20`,
+        { tokenProvider: getIdToken }
       );
-      if (!response.ok) throw new Error('Failed to fetch links');
-      const data = await response.json();
-      const mapped: LinkData[] = (Array.isArray(data) ? data : []).map((item: Record<string, unknown>) => ({
-        id: (item.id as string) || crypto.randomUUID(),
-        url: (item.url as string) || '',
-        title: (item.title as string) || 'Untitled',
-        description: (item.shortDescription as string) || (item.description as string) || '',
-        space: (item.space as string) || space,
-        tags: (item.tags as string[]) || [],
-        source: (item.source as string) || '',
-        thumbnail: (item.thumbnailUrl as string) || (item.imageUrl as string) || undefined,
-        confidence: ((item.confidence as string) || 'medium') as 'high' | 'medium' | 'low',
-        createdAt: (item.createdAt as string) || new Date().toISOString(),
-      }));
-      setLinks(mapped);
+      setLinks(mapLinks(data.items, space));
+      setNextCursor(data.nextCursor);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+      }
       console.error('Error fetching links:', error);
       setLinks([]);
+      setNextCursor(null);
     } finally {
       setLoading(false);
     }
   }, [user, space, getIdToken]);
 
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || !user || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const spaceLabel = normalizeSpaceName(space);
+      const data = await apiFetch<{ items: unknown[]; nextCursor: string | null }>(
+        `/api/links?space=${encodeURIComponent(spaceLabel)}&pageSize=20&cursor=${encodeURIComponent(nextCursor)}`,
+        { tokenProvider: getIdToken }
+      );
+      setLinks((prev) => [...prev, ...mapLinks(data.items, space)]);
+      setNextCursor(data.nextCursor);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+      }
+      console.error('Error loading more links:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextCursor, user, loadingMore, space, getIdToken]);
+
   useEffect(() => {
     fetchLinks();
   }, [fetchLinks, refreshTrigger]);
 
-  // Reset search, source, and sort when space changes
   useEffect(() => {
     setSearchQuery('');
     setSelectedSource('all');
@@ -113,32 +145,27 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
   const handleDeleteLink = async (id: string) => {
     if (!user) return;
     try {
-      const token = await getIdToken();
-      const response = await fetch(
-        `${API_URL}/api/links/${id}?userId=${encodeURIComponent(user.uid)}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!response.ok) throw new Error('Failed to delete link');
+      await apiFetch(`/api/links/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        tokenProvider: getIdToken,
+      });
       fetchLinks();
       if (onLinkDeleted) {
         onLinkDeleted();
       }
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+      }
       console.error('Error deleting link:', error);
     }
   };
 
-  // Filter links by search query and source
   let processedLinks = links.filter((link) => {
     const matchesSearch = searchQuery
-      ? (link.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         link.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         link.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+      ? (link.title.toLowerCase().includes(searchQuery.toLowerCase())
+         || link.description.toLowerCase().includes(searchQuery.toLowerCase())
+         || link.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())))
       : true;
 
     const matchesSource = selectedSource === 'all'
@@ -148,7 +175,6 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
     return matchesSearch && matchesSource;
   });
 
-  // Sort links
   processedLinks = [...processedLinks].sort((a, b) => {
     if (sortBy === 'newest') {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -164,7 +190,6 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
 
   return (
     <div className="h-full flex flex-col">
-      {/* ── Header ── */}
       <div className={`relative px-6 pt-6 pb-5 bg-gradient-to-b ${accentGradient} to-transparent`}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-sortai-jet border border-sortai-slate/15 flex items-center justify-center">
@@ -182,9 +207,7 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
 
         <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-        {/* Source Tabs and Sort Selection */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-          {/* Source Tabs */}
           <div className="flex flex-wrap items-center gap-1 bg-sortai-jet/50 p-1 rounded-xl border border-sortai-slate/10">
             {['all', 'youtube', 'instagram', 'tiktok', 'facebook', 'web'].map((src) => (
               <button
@@ -192,21 +215,20 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
                 onClick={() => setSelectedSource(src)}
                 className={`px-3 py-1 text-[11px] rounded-lg font-medium capitalize transition-colors
                   ${selectedSource === src
-                    ? 'bg-sortai-white/[0.08] text-sortai-white border border-sortai-slate/20 font-semibold'
-                    : 'text-sortai-slate hover:text-sortai-silver border border-transparent'
-                  }`}
+    ? 'bg-sortai-white/[0.08] text-sortai-white border border-sortai-slate/20 font-semibold'
+    : 'text-sortai-slate hover:text-sortai-silver border border-transparent'
+}`}
               >
                 {src}
               </button>
             ))}
           </div>
 
-          {/* Sort Selector */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-sortai-slate uppercase tracking-wider font-semibold">Sort By</span>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'title')}
               className="bg-sortai-jet border border-sortai-slate/15 rounded-xl px-3 py-1.5 text-xs text-sortai-silver focus:outline-none focus:border-sortai-slate/30 cursor-pointer"
             >
               <option value="newest">Newest</option>
@@ -223,11 +245,24 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
         ) : processedLinks.length === 0 ? (
           <EmptyState space={space} hasSearch={!!searchQuery || selectedSource !== 'all'} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {processedLinks.map((link) => (
-              <LinkCard key={link.id} link={link} onDelete={handleDeleteLink} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {processedLinks.map((link) => (
+                <LinkCard key={link.id} link={link} onDelete={handleDeleteLink} />
+              ))}
+            </div>
+            {nextCursor && !searchQuery && selectedSource === 'all' && (
+              <div className="flex justify-center pt-6">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-4 py-2 rounded-lg border border-sortai-slate/20 text-sm text-sortai-silver hover:text-sortai-white disabled:opacity-60"
+                >
+                  {loadingMore ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

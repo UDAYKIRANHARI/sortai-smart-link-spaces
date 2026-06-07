@@ -10,38 +10,54 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 import express from "express";
 import cors from "cors";
 import linkRoutes from "./routes/links";
+import { globalRateLimit } from "./middleware/rateLimit";
+import {
+  requestContextMiddleware,
+  requestTimeoutMiddleware,
+  securityHeadersMiddleware,
+  getMetricsSnapshot,
+} from "./middleware/observability";
+import { initializeFirebase, isFirebaseInitialized } from "./services/db";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "8080", 10);
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS
+  || "http://localhost:5173,http://127.0.0.1:5173,https://sortai-c4f60.web.app,https://sortai-c4f60.firebaseapp.com")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
 
 // ---------------------------------------------------------------------------
 // CORS – allow the Vite dev server and production Firebase Hosting origins
 // ---------------------------------------------------------------------------
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "http://localhost:3000",
-      "https://sortai-c4f60.web.app",
-      "https://sortai-c4f60.firebaseapp.com",
-    ],
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("CORS blocked"));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
 
-// Also accept any origin in dev mode so mobile / other tools work
-if (process.env.NODE_ENV !== "production") {
-  app.use(cors());
-}
-
 // ---------------------------------------------------------------------------
 // Body parsing
 // ---------------------------------------------------------------------------
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(requestContextMiddleware);
+app.use(requestTimeoutMiddleware);
+app.use(securityHeadersMiddleware);
+app.use(globalRateLimit);
 
 // ---------------------------------------------------------------------------
 // Health-check
@@ -53,6 +69,27 @@ app.get("/health", (_req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
+});
+
+app.get("/ready", (_req, res) => {
+  if (!isFirebaseInitialized()) {
+    initializeFirebase();
+  }
+  const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+  const hasYouTubeKey = Boolean(process.env.YOUTUBE_API_KEY);
+  const ready = hasGeminiKey && hasYouTubeKey;
+  res.status(ready ? 200 : 503).json({
+    ready,
+    checks: {
+      firebaseInitialized: isFirebaseInitialized(),
+      geminiKeyConfigured: hasGeminiKey,
+      youtubeKeyConfigured: hasYouTubeKey,
+    },
+  });
+});
+
+app.get("/metrics", (_req, res) => {
+  res.json(getMetricsSnapshot());
 });
 
 // ---------------------------------------------------------------------------
@@ -79,6 +116,10 @@ app.use(
   ) => {
     console.error("[ERROR]", err.message);
     console.error(err.stack);
+    if (err.message === "CORS blocked") {
+      res.status(403).json({ error: "Origin not allowed" });
+      return;
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 );

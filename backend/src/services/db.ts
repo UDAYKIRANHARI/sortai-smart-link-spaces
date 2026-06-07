@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { getFirestore, Firestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, Firestore, FieldValue, Query } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 
@@ -30,7 +30,7 @@ export interface SavedLinkWithId extends SavedLink {
 // ---------------------------------------------------------------------------
 let _db: Firestore | null = null;
 
-function initializeFirebase(): void {
+export function initializeFirebase(): void {
   if (admin.apps.length > 0) return; // Already initialised
 
   const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -53,6 +53,12 @@ function initializeFirebase(): void {
     );
   }
 
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "GOOGLE_APPLICATION_CREDENTIALS must be configured in production"
+    );
+  }
+
   // Fallback: initialise without credentials (works with emulator or
   // Application Default Credentials in GCP)
   admin.initializeApp({
@@ -71,14 +77,29 @@ function getDb(): Firestore {
   return _db;
 }
 
+export function isFirebaseInitialized(): boolean {
+  return admin.apps.length > 0;
+}
+
 // ---------------------------------------------------------------------------
 // saveLink – writes to users/{userId}/links/{auto-id}
 // ---------------------------------------------------------------------------
 export async function saveLink(
   userId: string,
   linkData: SavedLink
-): Promise<SavedLinkWithId> {
+): Promise<SavedLinkWithId & { created: boolean }> {
   const colRef = getDb().collection("users").doc(userId).collection("links");
+
+  // Idempotency guard: if the same URL already exists for this user, return it.
+  const existing = await colRef.where("url", "==", linkData.url).limit(1).get();
+  if (!existing.empty) {
+    const doc = existing.docs[0];
+    return {
+      id: doc.id,
+      ...(doc.data() as SavedLink),
+      created: false,
+    };
+  }
 
   const docData = {
     ...linkData,
@@ -92,6 +113,7 @@ export async function saveLink(
     id: docRef.id,
     ...linkData,
     createdAt: docData.createdAt,
+    created: true,
   };
 }
 
@@ -101,27 +123,62 @@ export async function saveLink(
 export async function getLinks(
   userId: string,
   space?: string,
-  query?: string
-): Promise<SavedLinkWithId[]> {
-  const colRef = getDb()
+  query?: string,
+  pageSize = 20,
+  cursor?: string
+): Promise<{ items: SavedLinkWithId[]; nextCursor: string | null }> {
+  let colRef: Query = getDb()
     .collection("users")
     .doc(userId)
     .collection("links")
     .orderBy("createdAt", "desc");
 
-  const snapshot = await colRef.limit(200).get();
+  // Apply indexed equality filter in DB where possible.
+  if (space && space.trim().length > 0) {
+    colRef = colRef.where("space", "==", space.trim());
+  }
+
+  let queryRef = colRef.limit(Math.min(Math.max(pageSize, 1), 100));
+  if (cursor) {
+    const cursorDoc = await getDb()
+      .collection("users")
+      .doc(userId)
+      .collection("links")
+      .doc(cursor)
+      .get();
+    if (cursorDoc.exists) {
+      queryRef = queryRef.startAfter(cursorDoc);
+    }
+  }
+
+  let snapshot;
+  try {
+    snapshot = await queryRef.get();
+  } catch (err) {
+    // Fallback to non-indexed query if composite index is missing.
+    if (space) {
+      const fallback = await getDb()
+        .collection("users")
+        .doc(userId)
+        .collection("links")
+        .orderBy("createdAt", "desc")
+        .limit(Math.min(Math.max(pageSize, 1), 100))
+        .get();
+      snapshot = fallback;
+    } else {
+      throw err;
+    }
+  }
 
   let results: SavedLinkWithId[] = snapshot.docs.map((doc) => {
     const data = doc.data() as SavedLink;
     return { id: doc.id, ...data };
   });
 
-  // Filter by space in-memory to bypass composite index requirement
+  // Client-side text search across title, description, tags
   if (space && space.trim().length > 0) {
     const targetSpace = space.trim().toLowerCase();
-    results = results.filter(
-      (link) => (link.space || "").toLowerCase() === targetSpace
-    );
+    results = results.filter((link) => (link.space || "").toLowerCase() === targetSpace);
   }
 
   // Client-side text search across title, description, tags
@@ -141,7 +198,12 @@ export async function getLinks(
     });
   }
 
-  return results;
+  const nextCursor =
+    snapshot.docs.length === Math.min(Math.max(pageSize, 1), 100)
+      ? snapshot.docs[snapshot.docs.length - 1].id
+      : null;
+
+  return { items: results, nextCursor };
 }
 
 // ---------------------------------------------------------------------------

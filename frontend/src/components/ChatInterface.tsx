@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { ApiError, apiFetch } from '../lib/api';
 import {
   Send,
   Link as LinkIcon,
@@ -10,8 +11,6 @@ import {
   Plus,
 } from 'lucide-react';
 import StarfieldBackground from './StarfieldBackground';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const SPACE_BADGE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   career: { bg: 'bg-sortai-jet', text: 'text-sortai-pale', border: 'border-sortai-slate/20' },
@@ -58,7 +57,7 @@ function isValidUrl(str: string): boolean {
 }
 
 export default function ChatInterface({ onLinkSaved }: ChatInterfaceProps) {
-  const { user, getIdToken } = useAuth();
+  const { user, getIdToken, logout } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -147,24 +146,20 @@ export default function ChatInterface({ onLinkSaved }: ChatInterfaceProps) {
     setIsProcessing(true);
 
     try {
-      const token = await getIdToken();
-      const response = await fetch(`${API_URL}/api/links`, {
+      const data = await apiFetch<{
+        title?: string;
+        shortDescription?: string;
+        description?: string;
+        space?: string;
+        tags?: string[];
+        source?: string;
+        confidence?: string;
+      }>('/api/links', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          url: url,
-          userId: user?.uid,
-        }),
+        tokenProvider: getIdToken,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const data = await response.json();
 
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -189,6 +184,10 @@ export default function ChatInterface({ onLinkSaved }: ChatInterfaceProps) {
 
       onLinkSaved();
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+      }
+
       const errorMsg: ChatMessage = {
         id: crypto.randomUUID(),
         type: 'error',

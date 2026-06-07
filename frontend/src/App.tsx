@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Sidebar, { type SpaceSummary } from './components/Sidebar';
-import ChatInterface from './components/ChatInterface';
-import SpaceView from './components/SpaceView';
 import { Loader2 } from 'lucide-react';
-import SettingsModal from './components/SettingsModal';
+import { ApiError, apiFetch } from './lib/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const ChatInterface = lazy(() => import('./components/ChatInterface'));
+const SpaceView = lazy(() => import('./components/SpaceView'));
+const SettingsModal = lazy(() => import('./components/SettingsModal'));
 
 function App() {
   return (
@@ -32,7 +32,7 @@ function AppContent() {
 }
 
 function AuthenticatedApp({ user }: { user: { uid: string; displayName: string | null; email: string | null; photoURL: string | null } }) {
-  const { getIdToken } = useAuth();
+  const { getIdToken, logout } = useAuth();
   const [activeView, setActiveView] = useState('chat');
   const [spaceSummary, setSpaceSummary] = useState<SpaceSummary>({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -40,45 +40,21 @@ function AuthenticatedApp({ user }: { user: { uid: string; displayName: string |
 
   const fetchSpaceSummary = useCallback(async () => {
     try {
-      const token = await getIdToken();
-      const response = await fetch(
-        `${API_URL}/api/spaces-summary?userId=${encodeURIComponent(user.uid)}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.ok) {
-        // If summary endpoint doesn't exist, try fetching all links and grouping
-        const allLinksResponse = await fetch(
-          `${API_URL}/api/links?userId=${encodeURIComponent(user.uid)}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (allLinksResponse.ok) {
-          const links = await allLinksResponse.json();
-          if (Array.isArray(links)) {
-            const summary: SpaceSummary = {};
-            links.forEach((link: { space?: string }) => {
-              const space = (link.space || 'other').toLowerCase();
-              summary[space] = (summary[space] || 0) + 1;
-            });
-            setSpaceSummary(summary);
-          }
-        }
-        return;
-      }
-      const data = await response.json();
-      // Normalize keys to lowercase to match sidebar lookups
+      const data = await apiFetch<Record<string, number>>('/api/spaces-summary', {
+        tokenProvider: getIdToken,
+      });
       const normalized: SpaceSummary = {};
       for (const [key, val] of Object.entries(data)) {
         normalized[key.toLowerCase()] = val as number;
       }
       setSpaceSummary(normalized);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+      }
       console.error('Failed to fetch space summary:', error);
     }
-  }, [user.uid, getIdToken]);
+  }, [getIdToken, logout]);
 
   useEffect(() => {
     fetchSpaceSummary();
@@ -90,7 +66,6 @@ function AuthenticatedApp({ user }: { user: { uid: string; displayName: string |
 
   return (
     <div className="h-screen flex bg-sortai-black relative overflow-hidden">
-      {/* Sidebar */}
       <Sidebar
         spaceSummary={spaceSummary}
         activeView={activeView}
@@ -103,28 +78,30 @@ function AuthenticatedApp({ user }: { user: { uid: string; displayName: string |
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {/* Main Content */}
       <main className="flex-1 h-full overflow-hidden pl-0 lg:pl-0 relative">
-        <div className={`h-full ${activeView === 'chat' ? 'block' : 'hidden'}`}>
-          <ChatInterface onLinkSaved={handleLinkSaved} />
-        </div>
-        <div className={`h-full ${activeView !== 'chat' ? 'block' : 'hidden'}`}>
-          {activeView !== 'chat' && (
-            <SpaceView
-              space={activeView}
-              refreshTrigger={refreshTrigger}
-              onLinkDeleted={handleLinkSaved}
-            />
-          )}
-        </div>
+        <Suspense fallback={<LoadingScreen />}>
+          <div className={`h-full ${activeView === 'chat' ? 'block' : 'hidden'}`}>
+            <ChatInterface onLinkSaved={handleLinkSaved} />
+          </div>
+          <div className={`h-full ${activeView !== 'chat' ? 'block' : 'hidden'}`}>
+            {activeView !== 'chat' && (
+              <SpaceView
+                space={activeView}
+                refreshTrigger={refreshTrigger}
+                onLinkDeleted={handleLinkSaved}
+              />
+            )}
+          </div>
+        </Suspense>
       </main>
 
-      {/* Settings Modal */}
       {settingsOpen && (
-        <SettingsModal
-          onClose={() => setSettingsOpen(false)}
-          spaceSummary={spaceSummary}
-        />
+        <Suspense fallback={null}>
+          <SettingsModal
+            onClose={() => setSettingsOpen(false)}
+            spaceSummary={spaceSummary}
+          />
+        </Suspense>
       )}
     </div>
   );

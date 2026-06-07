@@ -1,5 +1,5 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
+import { getWithRetry } from "./http";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -138,14 +138,25 @@ export async function extractMetadata(url: string): Promise<NormalizedMetadata> 
   let channelTitle: string | undefined;
 
   try {
-    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    const parsedInput = new URL(url);
+    const host = parsedInput.hostname.replace(/^www\./, "").toLowerCase();
+    const blockedHosts = ["localhost", "127.0.0.1", "::1"];
+    if (
+      blockedHosts.includes(host)
+      || host.startsWith("10.")
+      || host.startsWith("192.168.")
+      || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+      || host.endsWith(".local")
+    ) {
+      throw new Error("Blocked internal host");
+    }
+
     const isSocial = host.includes("instagram.com") || host.includes("facebook.com") || host.includes("tiktok.com");
     const userAgent = isSocial
       ? "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"
       : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
-    const { data: html } = await axios.get<string>(url, {
-      timeout: 10_000,
+    const { data: html } = await getWithRetry<string>(url, {
       maxRedirects: 5,
       headers: {
         "User-Agent": userAgent,

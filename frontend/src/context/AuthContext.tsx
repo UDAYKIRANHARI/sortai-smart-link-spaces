@@ -13,7 +13,7 @@ interface AuthContextType {
   loading: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  getIdToken: () => Promise<string>;
+  getIdToken: (forceRefresh?: boolean) => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -48,9 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getIdToken = async (): Promise<string> => {
+  const getIdToken = async (forceRefresh = false): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
-    return user.getIdToken();
+    return user.getIdToken(forceRefresh);
   };
 
   return (

@@ -1,13 +1,12 @@
 import { X, Download, ShieldCheck, Database, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
+import { ApiError, apiFetch } from '../lib/api';
 
 interface SettingsModalProps {
   onClose: () => void;
   spaceSummary: Record<string, number>;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export default function SettingsModal({ onClose, spaceSummary }: SettingsModalProps) {
   const { user, getIdToken, logout } = useAuth();
@@ -18,15 +17,22 @@ export default function SettingsModal({ onClose, spaceSummary }: SettingsModalPr
     if (!user) return;
     setIsExporting(true);
     try {
-      const token = await getIdToken();
-      const response = await fetch(`${API_URL}/api/links?userId=${encodeURIComponent(user.uid)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Failed to fetch links');
-      const data = await response.json();
-      
+      const allItems: unknown[] = [];
+      let cursor: string | null = null;
+
+      do {
+        const requestPath: string = cursor
+          ? `/api/links?pageSize=100&cursor=${encodeURIComponent(cursor)}`
+          : '/api/links?pageSize=100';
+        const page: { items: unknown[]; nextCursor: string | null } = await apiFetch(requestPath, {
+          tokenProvider: getIdToken,
+        });
+        allItems.push(...(Array.isArray(page.items) ? page.items : []));
+        cursor = page.nextCursor;
+      } while (cursor);
+
       // Trigger JSON download
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(allItems, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -36,6 +42,9 @@ export default function SettingsModal({ onClose, spaceSummary }: SettingsModalPr
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+      }
       console.error('Export failed:', error);
       alert('Failed to export links. Please try again.');
     } finally {

@@ -244,8 +244,16 @@ Save and classify a new link.
 }
 ```
 
-### `GET /api/links?space=Tech&q=react`
-Get saved links with optional space filter and text search.
+### `GET /api/links?space=Tech&q=react&pageSize=20&cursor=<docId>`
+Get saved links with optional indexed space filter, text search, and pagination.
+
+**Response:**
+```json
+{
+  "items": [],
+  "nextCursor": "abc123-or-null"
+}
+```
 
 ### `GET /api/spaces-summary`
 Get link counts per space.
@@ -256,8 +264,8 @@ Get link counts per space.
 
 - **Instagram / TikTok / Facebook**: These platforms actively block scraping. The app uses generic HTML metadata extraction which may return limited information. The Gemini classification will still work based on available URL patterns and any metadata that can be extracted.
 - **YouTube**: Uses the official YouTube Data API v3 for reliable metadata extraction.
-- **Rate Limiting**: No rate limiting is implemented on the API yet.
-- **Pagination**: Link fetching currently returns all links per space without pagination.
+- **Rate Limiting**: Global and classification-specific rate limits are enabled via env configuration.
+- **Pagination**: Links API now supports cursor-based pagination.
 - **Real-time updates**: The app polls for data rather than using Firestore real-time listeners.
 
 ---
@@ -300,10 +308,16 @@ After deployment, update `VITE_API_URL` in the frontend to point to the Cloud Ru
 ## Security Notes
 
 - Firestore rules enforce that users can only read/write their own data
-- The backend verifies Firebase ID tokens on authenticated endpoints
+- The backend strictly verifies Firebase ID tokens on authenticated endpoints (no query/body auth fallback)
 - API keys are stored in environment variables, never hardcoded
-- For production, add rate limiting, input sanitization, and CORS restrictions
+- Request security headers, strict CORS, and request timeout controls are enabled
 - Consider adding Content Security Policy headers
+
+## Operations
+
+- CI pipeline: `.github/workflows/ci.yml`
+- Release checklist: `docs/PRODUCTION_CHECKLIST.md`
+- Incident and ops runbook: `docs/RUNBOOK.md`
 
 ---
 
