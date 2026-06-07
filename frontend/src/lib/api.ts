@@ -33,7 +33,7 @@ export async function apiFetch<T>(
     return fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
-        ...(token ? { Authorization: `${['Be', 'arer '].join('')}${token}` } : {}),
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
         ...headers,
       },
     });
