@@ -22,8 +22,9 @@ export default function Login() {
     setError('');
     try {
       await login();
-    } catch {
-      setError('Sign-in failed. Please try again.');
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'Sign-in failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

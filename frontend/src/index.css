@@ -132,6 +132,75 @@ body {
   .pulse-dot:nth-child(3) {
     animation-delay: 0.4s;
   }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Source accent badges */
+  .source-youtube {
+    background: rgba(255, 68, 68, 0.12);
+    border-color: rgba(255, 68, 68, 0.25);
+    color: #FF6B6B;
+  }
+  .source-github {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.25);
+    color: #A78BFA;
+  }
+  .source-instagram {
+    background: rgba(225, 48, 108, 0.12);
+    border-color: rgba(225, 48, 108, 0.25);
+    color: #F472B6;
+  }
+  .source-tiktok {
+    background: rgba(37, 244, 238, 0.1);
+    border-color: rgba(37, 244, 238, 0.2);
+    color: #5EEAD4;
+  }
+  .source-linkedin {
+    background: rgba(10, 102, 194, 0.12);
+    border-color: rgba(10, 102, 194, 0.25);
+    color: #60A5FA;
+  }
+  .source-web {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #93C5FD;
+  }
+  .source-default {
+    background: rgba(107, 114, 128, 0.1);
+    border-color: rgba(107, 114, 128, 0.2);
+    color: #9CA3AF;
+  }
+
+  /* Space accent dot colors */
+  .space-dot-career { background-color: #F59E0B; }
+  .space-dot-study { background-color: #3B82F6; }
+  .space-dot-fashion { background-color: #EC4899; }
+  .space-dot-fitness { background-color: #10B981; }
+  .space-dot-tech { background-color: #8B5CF6; }
+  .space-dot-tools { background-color: #F97316; }
+  .space-dot-weblinks { background-color: #6366F1; }
+  .space-dot-entertainment { background-color: #EF4444; }
+  .space-dot-life { background-color: #14B8A6; }
+  .space-dot-other { background-color: #6B7280; }
 }
 
 /* ─── Keyframes ─── */
@@ -175,8 +244,18 @@ body {
   }
 }
 
+/* Multi-step loading progress bar */
+@keyframes progressFill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.progress-fill {
+  animation: progressFill 2s ease-in-out forwards;
+}
+
 /* ─── Transition Defaults ─── */
-a, button, input, textarea {
+a, button, input, textarea, select {
   transition: all 0.2s ease;
 }
 
@@ -192,4 +271,15 @@ input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Custom select styling for dark theme */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236A6A6A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
 }

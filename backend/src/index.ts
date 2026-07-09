@@ -10,6 +10,11 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 import express from "express";
 import cors from "cors";
 import linkRoutes from "./routes/links";
+import adminRoutes from "./routes/admin";
+import { initializeFirebase } from "./services/db";
+
+// Now that env vars are loaded, we can safely initialize Firebase
+initializeFirebase();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "8080", 10);
@@ -25,6 +30,9 @@ app.use(
       "http://localhost:3000",
       "https://sortai-c4f60.web.app",
       "https://sortai-c4f60.firebaseapp.com",
+      "https://sortai.dev",
+      "https://www.sortai.dev",
+      /\.run\.app$/,  // Allow any Cloud Run origin
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -59,6 +67,7 @@ app.get("/health", (_req, res) => {
 // API routes
 // ---------------------------------------------------------------------------
 app.use("/api", linkRoutes);
+app.use("/api", adminRoutes);
 
 // ---------------------------------------------------------------------------
 // 404 catch-all

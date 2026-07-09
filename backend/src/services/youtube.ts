@@ -1,7 +1,9 @@
 import axios from "axios";
 import { NormalizedMetadata } from "./scraper";
 
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+function getYouTubeApiKey(): string | undefined {
+  return process.env.YOUTUBE_API_KEY;
+}
 
 // ---------------------------------------------------------------------------
 // URL helpers
@@ -99,7 +101,7 @@ export async function getYouTubeMetadata(
     return null;
   }
 
-  if (!YOUTUBE_API_KEY) {
+  if (!getYouTubeApiKey()) {
     console.warn("[YOUTUBE] YOUTUBE_API_KEY is not set – skipping API call");
     return null;
   }
@@ -110,7 +112,7 @@ export async function getYouTubeMetadata(
       params: {
         part: "snippet",
         id: videoId,
-        key: YOUTUBE_API_KEY,
+        key: getYouTubeApiKey(),
       },
       timeout: 10_000,
     });

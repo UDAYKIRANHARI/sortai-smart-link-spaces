@@ -6,6 +6,7 @@ import admin from "firebase-admin";
 // ---------------------------------------------------------------------------
 export interface AuthenticatedRequest extends Request {
   userId?: string;
+  userEmail?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -26,8 +27,10 @@ export async function authMiddleware(
         // If Firebase Admin is initialised, verify the token
         if (admin.apps.length > 0) {
           try {
-            const decoded = await admin.auth().verifyIdToken(token);
+            const authApp = admin.apps.find(app => app?.name === "authApp") || admin.app();
+            const decoded = await authApp.auth().verifyIdToken(token);
             req.userId = decoded.uid;
+            req.userEmail = decoded.email;
             return next();
           } catch (verifyErr) {
             console.warn(

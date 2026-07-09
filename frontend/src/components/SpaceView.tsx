@@ -15,6 +15,9 @@ import {
   Sparkles,
   Wrench,
   Globe,
+  MessageSquare,
+  ArrowRight,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -23,6 +26,7 @@ interface SpaceViewProps {
   space: string;
   refreshTrigger: number;
   onLinkDeleted?: () => void;
+  onNavigateToChat?: () => void;
 }
 
 const SPACE_ICONS: Record<string, typeof Briefcase> = {
@@ -38,20 +42,20 @@ const SPACE_ICONS: Record<string, typeof Briefcase> = {
   other: Folder,
 };
 
-const SPACE_ACCENT: Record<string, string> = {
-  career: 'from-sortai-white/[0.04]',
-  study: 'from-sortai-white/[0.04]',
-  fashion: 'from-sortai-white/[0.04]',
-  fitness: 'from-sortai-white/[0.04]',
-  tech: 'from-sortai-white/[0.04]',
-  tools: 'from-sortai-white/[0.04]',
-  'web links': 'from-sortai-white/[0.04]',
-  entertainment: 'from-sortai-white/[0.04]',
-  life: 'from-sortai-white/[0.04]',
-  other: 'from-sortai-white/[0.04]',
+const SPACE_ACCENT_COLORS: Record<string, { gradient: string; iconBg: string; iconText: string }> = {
+  career: { gradient: 'from-space-career/10', iconBg: 'bg-space-career/15', iconText: 'text-space-career' },
+  study: { gradient: 'from-space-study/10', iconBg: 'bg-space-study/15', iconText: 'text-space-study' },
+  fashion: { gradient: 'from-space-fashion/10', iconBg: 'bg-space-fashion/15', iconText: 'text-space-fashion' },
+  fitness: { gradient: 'from-space-fitness/10', iconBg: 'bg-space-fitness/15', iconText: 'text-space-fitness' },
+  tech: { gradient: 'from-space-tech/10', iconBg: 'bg-space-tech/15', iconText: 'text-space-tech' },
+  tools: { gradient: 'from-space-tools/10', iconBg: 'bg-space-tools/15', iconText: 'text-space-tools' },
+  'web links': { gradient: 'from-space-weblinks/10', iconBg: 'bg-space-weblinks/15', iconText: 'text-space-weblinks' },
+  entertainment: { gradient: 'from-space-entertainment/10', iconBg: 'bg-space-entertainment/15', iconText: 'text-space-entertainment' },
+  life: { gradient: 'from-space-life/10', iconBg: 'bg-space-life/15', iconText: 'text-space-life' },
+  other: { gradient: 'from-space-other/10', iconBg: 'bg-space-other/15', iconText: 'text-space-other' },
 };
 
-export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: SpaceViewProps) {
+export default function SpaceView({ space, refreshTrigger, onLinkDeleted, onNavigateToChat }: SpaceViewProps) {
   const { user, getIdToken } = useAuth();
   const [links, setLinks] = useState<LinkData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +64,7 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
 
   const SpaceIcon = SPACE_ICONS[space] || Folder;
-  const accentGradient = SPACE_ACCENT[space] || SPACE_ACCENT.other;
+  const accent = SPACE_ACCENT_COLORS[space] || SPACE_ACCENT_COLORS.other;
 
   const fetchLinks = useCallback(async () => {
     if (!user) return;
@@ -70,11 +74,7 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
       const capitalizedSpace = space.charAt(0).toUpperCase() + space.slice(1);
       const response = await fetch(
         `${API_URL}/api/links?userId=${encodeURIComponent(user.uid)}&space=${encodeURIComponent(capitalizedSpace)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!response.ok) throw new Error('Failed to fetch links');
       const data = await response.json();
@@ -89,6 +89,7 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
         thumbnail: (item.thumbnailUrl as string) || (item.imageUrl as string) || undefined,
         confidence: ((item.confidence as string) || 'medium') as 'high' | 'medium' | 'low',
         createdAt: (item.createdAt as string) || new Date().toISOString(),
+        reasonToSave: (item.reasonToSave as string) || '',
       }));
       setLinks(mapped);
     } catch (error) {
@@ -103,7 +104,6 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
     fetchLinks();
   }, [fetchLinks, refreshTrigger]);
 
-  // Reset search, source, and sort when space changes
   useEffect(() => {
     setSearchQuery('');
     setSelectedSource('all');
@@ -116,75 +116,62 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
       const token = await getIdToken();
       const response = await fetch(
         `${API_URL}/api/links/${id}?userId=${encodeURIComponent(user.uid)}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
       );
       if (!response.ok) throw new Error('Failed to delete link');
       fetchLinks();
-      if (onLinkDeleted) {
-        onLinkDeleted();
-      }
+      onLinkDeleted?.();
     } catch (error) {
       console.error('Error deleting link:', error);
     }
   };
 
-  // Filter links by search query and source
+  const handleLinkMoved = () => {
+    fetchLinks();
+    onLinkDeleted?.();
+  };
+
   let processedLinks = links.filter((link) => {
     const matchesSearch = searchQuery
       ? (link.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
          link.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
          link.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())))
       : true;
-
     const matchesSource = selectedSource === 'all'
       ? true
       : link.source.toLowerCase() === selectedSource.toLowerCase();
-
     return matchesSearch && matchesSource;
   });
 
-  // Sort links
   processedLinks = [...processedLinks].sort((a, b) => {
-    if (sortBy === 'newest') {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-    if (sortBy === 'oldest') {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    }
-    if (sortBy === 'title') {
-      return a.title.localeCompare(b.title);
-    }
+    if (sortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (sortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (sortBy === 'title') return a.title.localeCompare(b.title);
     return 0;
   });
 
   return (
     <div className="h-full flex flex-col">
       {/* ── Header ── */}
-      <div className={`relative px-6 pt-6 pb-5 bg-gradient-to-b ${accentGradient} to-transparent`}>
+      <div className={`relative px-6 pt-6 pb-5 bg-gradient-to-b ${accent.gradient} to-transparent`}>
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-sortai-jet border border-sortai-slate/15 flex items-center justify-center">
-            <SpaceIcon className="w-5 h-5 text-sortai-silver" />
+          <div className={`w-10 h-10 rounded-xl ${accent.iconBg} border border-sortai-slate/10 flex items-center justify-center`}>
+            <SpaceIcon className={`w-5 h-5 ${accent.iconText}`} />
           </div>
           <div>
             <h1 className="font-heading text-xl font-semibold text-sortai-white capitalize">
               {space}
             </h1>
             <p className="text-[12px] text-sortai-slate">
-              {loading ? '...' : `${links.length} link${links.length !== 1 ? 's' : ''} saved`}
+              {loading ? 'Loading...' : `${links.length} link${links.length !== 1 ? 's' : ''} organized here`}
             </p>
           </div>
         </div>
 
         <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-        {/* Source Tabs and Sort Selection */}
+        {/* Source Tabs and Sort */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-          {/* Source Tabs */}
           <div className="flex flex-wrap items-center gap-1 bg-sortai-jet/50 p-1 rounded-xl border border-sortai-slate/10">
             {['all', 'youtube', 'instagram', 'tiktok', 'facebook', 'web'].map((src) => (
               <button
@@ -201,7 +188,6 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
             ))}
           </div>
 
-          {/* Sort Selector */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-sortai-slate uppercase tracking-wider font-semibold">Sort By</span>
             <select
@@ -221,11 +207,11 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted }: Spac
         {loading ? (
           <SkeletonGrid />
         ) : processedLinks.length === 0 ? (
-          <EmptyState space={space} hasSearch={!!searchQuery || selectedSource !== 'all'} />
+          <EmptyState space={space} hasSearch={!!searchQuery || selectedSource !== 'all'} onNavigateToChat={onNavigateToChat} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {processedLinks.map((link) => (
-              <LinkCard key={link.id} link={link} onDelete={handleDeleteLink} />
+              <LinkCard key={link.id} link={link} onDelete={handleDeleteLink} onMoved={handleLinkMoved} />
             ))}
           </div>
         )}
@@ -255,24 +241,36 @@ function SkeletonGrid() {
   );
 }
 
-function EmptyState({ space, hasSearch }: { space: string; hasSearch: boolean }) {
+function EmptyState({ space, hasSearch, onNavigateToChat }: { space: string; hasSearch: boolean; onNavigateToChat?: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center py-20 animate-fade-in">
       <div className="w-16 h-16 rounded-2xl bg-sortai-jet border border-sortai-slate/10 flex items-center justify-center mb-5">
         {hasSearch ? (
           <Inbox className="w-7 h-7 text-sortai-slate" />
         ) : (
-          <Sparkles className="w-7 h-7 text-sortai-slate" />
+          <LinkIcon className="w-7 h-7 text-sortai-slate" />
         )}
       </div>
       <h3 className="font-heading text-lg font-medium text-sortai-white mb-2">
         {hasSearch ? 'No matches found' : `No links in ${space} yet`}
       </h3>
-      <p className="text-sm text-sortai-slate max-w-xs leading-relaxed">
+      <p className="text-sm text-sortai-slate max-w-sm leading-relaxed mb-6">
         {hasSearch
-          ? 'Try adjusting your search query or check for typos.'
-          : `Start by pasting a link in the chat — SortAi will classify and save it here automatically.`}
+          ? 'Try adjusting your search query or clearing the filters.'
+          : `Your saved links will appear here once SortAi analyzes and organizes them into ${space}. Start by pasting a link in the assistant.`}
       </p>
+      {!hasSearch && onNavigateToChat && (
+        <button
+          onClick={onNavigateToChat}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sortai-white/[0.07] border border-sortai-slate/15
+                     text-sm text-sortai-silver hover:text-sortai-white hover:bg-sortai-white/[0.12] hover:border-sortai-slate/30
+                     transition-all duration-200 active:scale-95"
+        >
+          <MessageSquare className="w-4 h-4" />
+          Go to Link Assistant
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 }

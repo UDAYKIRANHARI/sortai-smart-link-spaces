@@ -2,8 +2,9 @@ import { Router, Response } from "express";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
 import { detectSource, extractMetadata } from "../services/scraper";
 import { isYouTubeUrl, getYouTubeMetadata } from "../services/youtube";
-import { classifyLink, heuristicClassifyLink } from "../services/gemini";
-import { saveLink, getLinks, getSpacesSummary, deleteLink, SavedLink } from "../services/db";
+import { classifyLink, heuristicClassifyLink, embedTextWithNvidia } from "../services/gemini";
+import { saveLink, getLinks, getSpacesSummary, deleteLink, updateLinkSpace, SavedLink } from "../services/db";
+import { upsertLinkVector, searchSimilarLinks, deleteLinkVector } from "../services/vectorDb";
 
 const router = Router();
 
@@ -88,6 +89,22 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
     const saved = await saveLink(userId, linkData);
     console.log(`[LINKS] Saved link ${saved.id} to space "${saved.space}"`);
 
+    // ---- 4. Save Semantic Embedding to Pinecone ---- //
+    try {
+      const embedText = `${saved.title} ${saved.shortDescription || ""} ${(saved.tags || []).join(" ")}`;
+      const vector = await embedTextWithNvidia(embedText);
+      await upsertLinkVector(saved.id, vector, {
+        userId,
+        title: saved.title || "Untitled",
+        url: saved.url,
+        space: saved.space,
+        createdAt: saved.createdAt,
+      });
+    } catch (vectorErr) {
+      console.error("[LINKS] Failed to save semantic vector, but link was saved:", vectorErr);
+      // We don't fail the overall request if vector saving fails
+    }
+
     res.status(201).json(saved);
   } catch (err) {
     console.error("[LINKS] POST /api/links error:", (err as Error).message);
@@ -119,10 +136,45 @@ router.get("/links", authMiddleware, async (req: AuthenticatedRequest, res: Resp
 
     const links = await getLinks(userId, space, query);
 
+    res.set('Cache-Control', 'no-store');
     res.json(links);
   } catch (err) {
     console.error("[LINKS] GET /api/links error:", (err as Error).message);
     res.status(500).json({ error: "Failed to fetch links", details: (err as Error).message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/links/search – semantic search via Pinecone
+// ---------------------------------------------------------------------------
+router.get("/links/search", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const query = req.query.q as string | undefined;
+
+    if (!query || query.trim().length === 0) {
+      res.status(400).json({ error: "Search query is required" });
+      return;
+    }
+
+    console.log(`[LINKS] Semantic search for user ${userId}: "${query}"`);
+    const vector = await embedTextWithNvidia(query);
+    const results = await searchSimilarLinks(userId, vector, 20);
+
+    // Map Pinecone metadata to match a lightweight SavedLinkWithId structure
+    const mapped = results.map(r => ({
+      id: r.id,
+      title: r.metadata.title,
+      url: r.metadata.url,
+      space: r.metadata.space,
+      createdAt: r.metadata.createdAt,
+      score: r.score
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error("[LINKS] GET /api/links/search error:", (err as Error).message);
+    res.status(500).json({ error: "Semantic search failed", details: (err as Error).message });
   }
 });
 
@@ -161,11 +213,122 @@ router.delete("/links/:id", authMiddleware, async (req: AuthenticatedRequest, re
     }
 
     await deleteLink(userId, linkId);
+    
+    // Also delete from vector db
+    try {
+      await deleteLinkVector(linkId);
+    } catch (e) {
+      console.error("[LINKS] Failed to delete link from Pinecone:", e);
+    }
+
     console.log(`[LINKS] User ${userId} deleted link ${linkId}`);
     res.json({ success: true, message: "Link deleted successfully" });
   } catch (err) {
     console.error("[LINKS] DELETE /api/links/:id error:", (err as Error).message);
     res.status(500).json({ error: "Failed to delete link", details: (err as Error).message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/links/:id – update a saved link's space
+// ---------------------------------------------------------------------------
+router.patch("/links/:id", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  console.log(`[LINKS] PATCH request received for link: ${req.params.id}, space: ${req.body.space}`);
+  try {
+    const userId = req.userId!;
+    const linkId = req.params.id as string;
+    const { space } = req.body as { space?: string };
+
+    if (!linkId) {
+      res.status(400).json({ error: "Link ID is required" });
+      return;
+    }
+
+    if (!space || typeof space !== "string" || space.trim().length === 0) {
+      res.status(400).json({ error: "A valid space name is required" });
+      return;
+    }
+
+    const validSpaces = [
+      "Career", "Study", "Fashion", "Fitness", "Tech",
+      "Tools", "Web links", "Entertainment", "Life", "Other",
+    ];
+
+    const normalizedSpace = validSpaces.find(
+      (s) => s.toLowerCase() === space.trim().toLowerCase()
+    );
+
+    if (!normalizedSpace) {
+      res.status(400).json({
+        error: `Invalid space. Must be one of: ${validSpaces.join(", ")}`,
+      });
+      return;
+    }
+
+    await updateLinkSpace(userId, linkId, normalizedSpace);
+    
+    // Also update Pinecone metadata
+    try {
+      const pc = await import("../services/vectorDb").then(m => m.initPinecone());
+      if (pc) {
+        const index = pc.Index(process.env.PINECONE_INDEX_NAME || "sortai-links");
+        // Pinecone update allows partial metadata updates
+        await index.update({
+          id: linkId,
+          metadata: { space: normalizedSpace }
+        });
+      }
+    } catch (e) {
+      console.error("[LINKS] Failed to update pinecone metadata:", e);
+    }
+
+    console.log(`[LINKS] User ${userId} moved link ${linkId} to space "${normalizedSpace}"`);
+    res.json({ success: true, message: `Link moved to ${normalizedSpace}`, space: normalizedSpace });
+  } catch (err) {
+    console.error("[LINKS] PATCH /api/links/:id error:", (err as Error).message);
+    res.status(500).json({ error: "Failed to update link", details: (err as Error).message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/chat – answer questions using saved links (RAG)
+// ---------------------------------------------------------------------------
+router.post("/chat", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { message } = req.body;
+    const userId = req.userId!;
+
+    if (!message || typeof message !== "string" || message.trim().length === 0) {
+      res.status(400).json({ error: "Message is required" });
+      return;
+    }
+
+    console.log(`[CHAT] Query for user ${userId}: ${message}`);
+
+    // 1. Embed the query
+    const queryVector = await embedTextWithNvidia(message);
+
+    // 2. Search Pinecone for top 5 links
+    const relevantLinks = await searchSimilarLinks(userId, queryVector, 5);
+
+    // 3. Format context
+    const contextTexts = relevantLinks.map(match => {
+      const meta = match.metadata;
+      return `Title: ${meta.title}\nURL: ${meta.url}\nSpace: ${meta.space}\nTags: ${Array.isArray(meta.tags) ? meta.tags.join(", ") : meta.tags || ""}\nSummary: ${meta.shortDescription || ""}`;
+    });
+
+    // 4. Generate AI response
+    const { generateChatResponse } = await import("../services/gemini");
+    const answer = await generateChatResponse(message, contextTexts);
+
+    // 5. Return response + used references
+    res.json({
+      answer,
+      references: relevantLinks.map(l => l.metadata)
+    });
+  } catch (error) {
+    console.error("[CHAT] Error handling chat query:", error);
+    res.status(500).json({ error: "Failed to process chat query" });
   }
 });
 

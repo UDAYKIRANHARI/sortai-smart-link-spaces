@@ -30,46 +30,60 @@ export interface SavedLinkWithId extends SavedLink {
 // ---------------------------------------------------------------------------
 let _db: Firestore | null = null;
 
-function initializeFirebase(): void {
+export function initializeFirebase(): void {
   if (admin.apps.length > 0) return; // Already initialised
 
-  const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-
-  if (credPath && credPath !== "PASTE_FULL_PATH_TO_FIREBASE_SERVICE_ACCOUNT_JSON") {
-    const resolved = path.resolve(credPath);
-    if (fs.existsSync(resolved)) {
+  try {
+    // 1. First, check if the raw JSON string is provided via environment variables (Best for Azure/Render/Vercel)
+    const jsonString = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    if (jsonString) {
+      const serviceAccount = JSON.parse(jsonString);
       admin.initializeApp({
-        credential: admin.credential.cert(resolved),
+        credential: admin.credential.cert(serviceAccount),
       });
-      console.log("[DB] Firebase Admin initialised with service account");
+      console.log("[DB] Firebase Admin initialised with service account JSON string from env");
       return;
     }
-    console.warn(
-      `[DB] Credentials file not found at "${resolved}" – initialising without credentials`
-    );
-  } else {
-    console.warn(
-      "[DB] GOOGLE_APPLICATION_CREDENTIALS not set – initialising without credentials"
-    );
-  }
+    // 2. Next, check if a file path is provided (Good for local dev or Docker)
+    const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-  // Fallback: initialise without credentials (works with emulator or
+    if (credPath && credPath !== "PASTE_FULL_PATH_TO_FIREBASE_SERVICE_ACCOUNT_JSON") {
+      const resolved = path.resolve(credPath);
+      if (fs.existsSync(resolved)) {
+        admin.initializeApp({
+          credential: admin.credential.cert(resolved),
+        });
+        console.log("[DB] Firebase Admin initialised with service account file");
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn("[DB] Failed to load credentials from env string or file");
+  }
   // Application Default Credentials in GCP)
   admin.initializeApp({
     projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "sortai-local",
   });
+  
+  // Initialize a secondary app strictly for Auth verification using the frontend's Firebase Project ID
+  admin.initializeApp({
+    projectId: "sortai-c4f60",
+  }, "authApp");
+
   console.warn(
     "[DB] Firebase Admin initialised WITHOUT service-account credentials (emulator / local dev)"
   );
 }
 
-function getDb(): Firestore {
+export function getDb(): Firestore {
   if (!_db) {
-    initializeFirebase();
     _db = getFirestore();
   }
   return _db;
 }
+
+// Export initializeFirebase so we can call it exactly when we want (e.g. after dotenv loads)
+export { initializeFirebase };
 
 // ---------------------------------------------------------------------------
 // saveLink – writes to users/{userId}/links/{auto-id}
@@ -177,4 +191,84 @@ export async function deleteLink(userId: string, linkId: string): Promise<void> 
     .collection("links")
     .doc(linkId);
   await docRef.delete();
+}
+
+// ---------------------------------------------------------------------------
+// updateLinkSpace – updates the space field on a saved link
+// ---------------------------------------------------------------------------
+export async function updateLinkSpace(
+  userId: string,
+  linkId: string,
+  newSpace: string
+): Promise<void> {
+  const docRef = getDb()
+    .collection("users")
+    .doc(userId)
+    .collection("links")
+    .doc(linkId);
+  await docRef.update({
+    space: newSpace,
+    _updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Feedback and Admin Functions
+// ---------------------------------------------------------------------------
+
+export interface Feedback {
+  userId: string;
+  userEmail?: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface FeedbackWithId extends Feedback {
+  id: string;
+}
+
+export async function saveFeedback(feedback: Feedback): Promise<FeedbackWithId> {
+  const docRef = await getDb().collection("feedbacks").add({
+    ...feedback,
+    _updatedAt: FieldValue.serverTimestamp()
+  });
+  return { id: docRef.id, ...feedback };
+}
+
+export async function getFeedbacks(): Promise<FeedbackWithId[]> {
+  const snapshot = await getDb().collection("feedbacks").orderBy("createdAt", "desc").get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackWithId));
+}
+
+export async function getTotalLinksCount(): Promise<number> {
+  try {
+    const snapshot = await getDb().collectionGroup("links").count().get();
+    return snapshot.data().count;
+  } catch (e) {
+    console.error("[DB] Error getting total links count:", e);
+    return 0;
+  }
+}
+
+export async function getTotalUsersCount(): Promise<number> {
+  try {
+    // Ensure admin is initialized
+    getDb();
+    let count = 0;
+    let pageToken: string | undefined;
+    
+    // Fallback if listUsers isn't available (e.g. some emulator setups)
+    if (!admin.auth) return 0;
+    
+    do {
+      const result = await admin.auth().listUsers(1000, pageToken);
+      count += result.users.length;
+      pageToken = result.pageToken;
+    } while (pageToken);
+    
+    return count;
+  } catch (e) {
+    console.error("[DB] Error getting total users count:", e);
+    return 0;
+  }
 }
