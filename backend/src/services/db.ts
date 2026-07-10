@@ -82,9 +82,6 @@ export function getDb(): Firestore {
   return _db;
 }
 
-// Export initializeFirebase so we can call it exactly when we want (e.g. after dotenv loads)
-export { initializeFirebase };
-
 // ---------------------------------------------------------------------------
 // saveLink – writes to users/{userId}/links/{auto-id}
 // ---------------------------------------------------------------------------
