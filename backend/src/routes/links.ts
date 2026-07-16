@@ -3,8 +3,9 @@ import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
 import { detectSource, extractMetadata } from "../services/scraper";
 import { isYouTubeUrl, getYouTubeMetadata } from "../services/youtube";
 import { classifyLink, heuristicClassifyLink, embedTextWithNvidia } from "../services/gemini";
-import { saveLink, getLinks, getSpacesSummary, deleteLink, updateLinkSpace, SavedLink } from "../services/db";
+import { saveLink, getLinks, getSpacesSummary, deleteLink, updateLinkSpace, SavedLink, getUserTier } from "../services/db";
 import { upsertLinkVector, searchSimilarLinks, deleteLinkVector } from "../services/vectorDb";
+import { analyzeVideoWithVision } from "../services/vision";
 
 const router = Router();
 
@@ -56,19 +57,33 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
 
     console.log(`[LINKS] Metadata extracted: "${metadata.title}" (${metadata.source})`);
 
-    // ---- 2. Classify with Gemini (with local fallback if quota/API fails) ---- //
+    // ---- 2. Classify with Gemini or NVIDIA Vision ---- //
     let classification;
-    try {
-      classification = await classifyLink(metadata);
-      console.log(
-        `[LINKS] Classified as "${classification.space}" (${classification.confidence} confidence)`
-      );
-    } catch (classifyErr) {
-      console.warn(
-        `[LINKS] Gemini classification failed – using local heuristic fallback. Reason:`,
-        (classifyErr as Error).message
-      );
-      classification = heuristicClassifyLink(metadata);
+    const isVideo = ["youtube", "instagram", "tiktok"].includes(source);
+    
+    const userTier = await getUserTier(userId);
+
+    if (isVideo && userTier === "pro") {
+      try {
+        console.log(`[LINKS] Pro user submitted a video. Triggering NVIDIA Vision Pipeline...`);
+        classification = await analyzeVideoWithVision(cleanUrl, metadata.title || cleanUrl);
+      } catch (visionErr) {
+        console.warn(`[LINKS] Vision classification failed, falling back to text metadata:`, (visionErr as Error).message);
+        classification = await classifyLink(metadata);
+      }
+    } else {
+      try {
+        classification = await classifyLink(metadata);
+        console.log(
+          `[LINKS] Classified as "${classification.space}" (${classification.confidence} confidence)`
+        );
+      } catch (classifyErr) {
+        console.warn(
+          `[LINKS] Gemini classification failed – using local heuristic fallback. Reason:`,
+          (classifyErr as Error).message
+        );
+        classification = heuristicClassifyLink(metadata);
+      }
     }
 
     // ---- 3. Save to Firestore ---- //

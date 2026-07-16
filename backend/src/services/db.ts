@@ -24,6 +24,16 @@ export interface SavedLinkWithId extends SavedLink {
   id: string;
 }
 
+export async function getUserTier(userId: string): Promise<"free" | "pro"> {
+  const docRef = getDb().collection("users").doc(userId);
+  const docSnap = await docRef.get();
+  if (docSnap.exists) {
+    const data = docSnap.data();
+    return data?.tier === "pro" ? "pro" : "free";
+  }
+  return "free";
+}
+
 // ---------------------------------------------------------------------------
 // Firebase Admin initialisation (lazy – runs on first getDb() call so that
 // dotenv has already loaded env vars by the time we read them)
