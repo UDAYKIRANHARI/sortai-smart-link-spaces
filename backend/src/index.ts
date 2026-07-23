@@ -11,6 +11,7 @@ import express from "express";
 import cors from "cors";
 import linkRoutes from "./routes/links";
 import adminRoutes from "./routes/admin";
+import stripeRoutes from "./routes/stripe";
 import { initializeFirebase } from "./services/db";
 
 // Now that env vars are loaded, we can safely initialize Firebase
@@ -34,7 +35,7 @@ app.use(
       "https://www.sortai.dev",
       /\.run\.app$/,  // Allow any Cloud Run origin
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
@@ -44,6 +45,10 @@ app.use(
 if (process.env.NODE_ENV !== "production") {
   app.use(cors());
 }
+
+// ---------------------------------------------------------------------------
+// Stripe routes (must be mounted before express.json() because webhook needs raw body)
+app.use("/stripe", stripeRoutes);
 
 // ---------------------------------------------------------------------------
 // Body parsing

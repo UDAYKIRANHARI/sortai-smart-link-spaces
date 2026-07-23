@@ -22,6 +22,7 @@ import {
   MessageSquare,
   LayoutDashboard,
   User,
+  Zap,
 } from 'lucide-react';
 
 export type SpaceSummary = {
@@ -40,6 +41,8 @@ interface SidebarProps {
   isAdmin?: boolean;
   onOpenAdmin?: () => void;
   onOpenFeedback?: () => void;
+  onUpgradeClick?: () => void;
+  userTier?: string;
 }
 
 const SPACE_CONFIG: { name: string; icon: typeof Briefcase; dotClass: string }[] = [
@@ -66,7 +69,9 @@ export default function Sidebar({
   onSmartSearch,
   isAdmin,
   onOpenAdmin,
-  onOpenFeedback
+  onOpenFeedback,
+  onUpgradeClick,
+  userTier
 }: SidebarProps) {
   const { logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -99,6 +104,15 @@ export default function Sidebar({
             style={{ filter: 'invert(1)' }}
           />
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sortai-white/10 text-sortai-silver border border-sortai-slate/20 tracking-wider uppercase leading-none">BETA</span>
+          
+          {userTier !== 'pro' && (
+            <button
+              onClick={onUpgradeClick}
+              className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-400/20 to-blue-500/20 text-emerald-400 border border-emerald-400/30 tracking-wider uppercase leading-none hover:bg-emerald-400/30 transition-all cursor-pointer ml-1"
+            >
+              <Zap className="w-3 h-3" /> PRO
+            </button>
+          )}
         </div>
         {/* Mobile close */}
         <button
@@ -209,7 +223,7 @@ export default function Sidebar({
       </div>
 
       {/* Admin & Feedback Actions */}
-      <div className="mt-auto px-4 pt-4 border-t border-sortai-slate/10 space-y-2 pb-4">
+      <div className="px-4 pt-2 border-t border-sortai-slate/10 space-y-2 pb-4">
         <button
           onClick={onOpenFeedback}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sortai-slate hover:bg-sortai-white/[0.05] hover:text-sortai-white transition-all text-sm font-medium"
@@ -242,9 +256,16 @@ export default function Sidebar({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sortai-white truncate">
-              {user.displayName || 'User'}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-sortai-white truncate">
+                {user.displayName || 'User'}
+              </p>
+              {userTier === 'pro' && (
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(52,211,153,0.3)] bg-gradient-to-r from-emerald-400 to-blue-500 text-black uppercase leading-none tracking-wider whitespace-nowrap">
+                  PRO
+                </span>
+              )}
+            </div>
             <p className="text-xs text-sortai-slate truncate">
               {user.email || 'No email'}
             </p>

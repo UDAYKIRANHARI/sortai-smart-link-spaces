@@ -24,14 +24,31 @@ export interface SavedLinkWithId extends SavedLink {
   id: string;
 }
 
-export async function getUserTier(userId: string): Promise<"free" | "pro"> {
+export async function getUserUsage(userId: string) {
   const docRef = getDb().collection("users").doc(userId);
   const docSnap = await docRef.get();
-  if (docSnap.exists) {
-    const data = docSnap.data();
-    return data?.tier === "pro" ? "pro" : "free";
+  const data = docSnap.exists ? docSnap.data() : {};
+  return {
+    tier: data?.tier === "pro" ? "pro" : "free",
+    monthlyLinkCount: data?.monthlyLinkCount || 0,
+    visionAiCount: data?.visionAiCount || 0,
+  };
+}
+
+export async function incrementUserUsage(userId: string, isVision: boolean) {
+  const docRef = getDb().collection("users").doc(userId);
+  const updates: any = {
+    monthlyLinkCount: FieldValue.increment(1)
+  };
+  if (isVision) {
+    updates.visionAiCount = FieldValue.increment(1);
   }
-  return "free";
+  await docRef.set(updates, { merge: true });
+}
+
+export async function getUserTier(userId: string): Promise<"free" | "pro"> {
+  const usage = await getUserUsage(userId);
+  return usage.tier as "free" | "pro";
 }
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
 import { detectSource, extractMetadata } from "../services/scraper";
 import { isYouTubeUrl, getYouTubeMetadata } from "../services/youtube";
 import { classifyLink, heuristicClassifyLink, embedTextWithNvidia } from "../services/gemini";
-import { saveLink, getLinks, getSpacesSummary, deleteLink, updateLinkSpace, SavedLink, getUserTier } from "../services/db";
+import { saveLink, getLinks, getSpacesSummary, deleteLink, updateLinkSpace, SavedLink, getUserTier, getUserUsage, incrementUserUsage } from "../services/db";
 import { upsertLinkVector, searchSimilarLinks, deleteLinkVector } from "../services/vectorDb";
 import { analyzeVideoWithVision } from "../services/vision";
 
@@ -61,11 +61,38 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
     let classification;
     const isVideo = ["youtube", "instagram", "tiktok"].includes(source);
     
-    const userTier = await getUserTier(userId);
+    const usage = await getUserUsage(userId);
+    const userTier = usage.tier;
+
+    // ---- Enforce Limits ---- //
+    if (userTier === "free") {
+      if (usage.monthlyLinkCount >= 30) {
+        return res.status(403).json({ 
+          error: "Limit Reached", 
+          code: "MONTHLY_LINK_LIMIT", 
+          message: "You have reached your 30 links per month limit on the Free tier. Upgrade to Pro for unlimited saves!" 
+        });
+      }
+    }
 
     if (isVideo && userTier === "pro") {
       try {
         console.log(`[LINKS] Pro user submitted a video. Triggering NVIDIA Vision Pipeline...`);
+        classification = await analyzeVideoWithVision(cleanUrl, metadata.title || cleanUrl);
+      } catch (visionErr) {
+        console.warn(`[LINKS] Vision classification failed, falling back to text metadata:`, (visionErr as Error).message);
+        classification = await classifyLink(metadata);
+      }
+    } else if (isVideo && userTier === "free") {
+      if (usage.visionAiCount >= 3) {
+        return res.status(403).json({ 
+          error: "Vision AI Limit Reached", 
+          code: "VISION_AI_LIMIT", 
+          message: "You have used your 3 free AI Video scans! Upgrade to Pro to unlock unlimited Video Vision." 
+        });
+      }
+      try {
+        console.log(`[LINKS] Free user submitted a video. Using one of 3 free Vision AI scans...`);
         classification = await analyzeVideoWithVision(cleanUrl, metadata.title || cleanUrl);
       } catch (visionErr) {
         console.warn(`[LINKS] Vision classification failed, falling back to text metadata:`, (visionErr as Error).message);
@@ -102,6 +129,10 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
     };
 
     const saved = await saveLink(userId, linkData);
+    
+    // Increment usage counters
+    await incrementUserUsage(userId, isVideo && (userTier === "pro" || usage.visionAiCount < 3));
+
     console.log(`[LINKS] Saved link ${saved.id} to space "${saved.space}"`);
 
     // ---- 4. Save Semantic Embedding to Pinecone ---- //
@@ -344,6 +375,20 @@ router.post("/chat", authMiddleware, async (req: AuthenticatedRequest, res: Resp
   } catch (error) {
     console.error("[CHAT] Error handling chat query:", error);
     res.status(500).json({ error: "Failed to process chat query" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/user-usage – return the user's tier and usage counts
+// ---------------------------------------------------------------------------
+router.get("/user-usage", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const usage = await getUserUsage(userId);
+    res.json(usage);
+  } catch (err) {
+    console.error("[LINKS] GET /api/user-usage error:", (err as Error).message);
+    res.status(500).json({ error: "Failed to fetch user usage" });
   }
 });
 

@@ -9,6 +9,8 @@ import AdminDashboard from './components/AdminDashboard';
 import { Loader2, CheckCircle2, MessageSquare, X } from 'lucide-react';
 import SettingsModal from './components/SettingsModal';
 import FeedbackModal from './components/FeedbackModal';
+import { PricingModal } from './components/PricingModal';
+import { UsageBanner } from './components/UsageBanner';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -90,6 +92,11 @@ function AuthenticatedApp({ user, isFeedbackOpen, setIsFeedbackOpen, feedbackMsg
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recentLinks, setRecentLinks] = useState<RecentLink[]>([]);
   const [semanticQuery, setSemanticQuery] = useState('');
+  
+  // Pricing / Usage state
+  const [showPricing, setShowPricing] = useState(false);
+  const [pricingReason, setPricingReason] = useState<'MONTHLY_LINK_LIMIT' | 'VISION_AI_LIMIT' | 'manual'>('manual');
+  const [userUsage, setUserUsage] = useState({ tier: 'free', monthlyLinkCount: 0, visionAiCount: 0 });
   
   const isAdmin = user?.email === 'udaykiranhari07@gmail.com';
   
@@ -241,6 +248,9 @@ function AuthenticatedApp({ user, isFeedbackOpen, setIsFeedbackOpen, feedbackMsg
   const handleLinkSaved = () => {
     setRefreshTrigger((prev) => prev + 1);
     
+    // Refresh usage counters after saving a link
+    fetchUserUsage();
+    
     // Check feedback trigger
     const processed = parseInt(localStorage.getItem('sortai_processed_links') || '0');
     const newCount = processed + 1;
@@ -261,6 +271,31 @@ function AuthenticatedApp({ user, isFeedbackOpen, setIsFeedbackOpen, feedbackMsg
     setActiveView('search_results');
   };
 
+  const handleShowPricing = (reason: 'MONTHLY_LINK_LIMIT' | 'VISION_AI_LIMIT' | 'manual') => {
+    setPricingReason(reason);
+    setShowPricing(true);
+  };
+
+  const fetchUserUsage = useCallback(async () => {
+    try {
+      const token = await getIdToken();
+      const response = await fetch(
+        `${API_URL}/api/user-usage?userId=${encodeURIComponent(user.uid)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setUserUsage(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user usage:', error);
+    }
+  }, [user.uid, getIdToken]);
+
+  useEffect(() => {
+    fetchUserUsage();
+  }, [fetchUserUsage, refreshTrigger]);
+
   return (
     <div className="h-screen flex bg-sortai-black relative overflow-hidden">
       {/* Sidebar */}
@@ -280,12 +315,19 @@ function AuthenticatedApp({ user, isFeedbackOpen, setIsFeedbackOpen, feedbackMsg
         isAdmin={isAdmin}
         onOpenAdmin={() => setActiveView('admin')}
         onOpenFeedback={() => setShowFeedback(true)}
+        onUpgradeClick={() => handleShowPricing('manual')}
+        userTier={userUsage.tier}
       />
 
       {/* Main Content */}
       <main className="flex-1 h-full overflow-hidden pl-0 lg:pl-0 relative">
         <div className={`h-full ${activeView === 'chat' ? 'block' : 'hidden'}`}>
-          <ChatInterface onLinkSaved={handleLinkSaved} recentLinks={recentLinks} />
+          <ChatInterface 
+            onLinkSaved={handleLinkSaved} 
+            recentLinks={recentLinks}
+            onShowPricing={handleShowPricing}
+            userUsage={userUsage}
+          />
         </div>
         <div className={`h-full ${activeView === 'search_results' ? 'block' : 'hidden'}`}>
           <SemanticSpaceView 
@@ -314,6 +356,15 @@ function AuthenticatedApp({ user, isFeedbackOpen, setIsFeedbackOpen, feedbackMsg
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           spaceSummary={spaceSummary}
+        />
+      )}
+
+      {/* Pricing Modal */}
+      {showPricing && (
+        <PricingModal
+          onClose={() => setShowPricing(false)}
+          triggerReason={pricingReason}
+          currentUsage={{ monthlyLinkCount: userUsage.monthlyLinkCount, visionAiCount: userUsage.visionAiCount }}
         />
       )}
 
