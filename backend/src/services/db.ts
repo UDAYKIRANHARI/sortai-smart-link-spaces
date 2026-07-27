@@ -28,9 +28,10 @@ export async function getUserUsage(userId: string, userEmail?: string) {
   const docRef = getDb().collection("users").doc(userId);
   const docSnap = await docRef.get();
   const data = docSnap.exists ? docSnap.data() : {};
+  const adminEmails = ["udaykiranhari07@gmail.com", "hariudaykiran0715@gmail.com"];
   const isProAdmin = userId === "M2204" || 
-                     userEmail === "udaykiranhari07@gmail.com" || 
-                     data?.email === "udaykiranhari07@gmail.com" || 
+                     (userEmail && adminEmails.includes(userEmail)) || 
+                     (data?.email && adminEmails.includes(data.email)) || 
                      data?.tier === "pro";
   return {
     tier: isProAdmin ? "pro" : "free",
