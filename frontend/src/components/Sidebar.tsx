@@ -104,15 +104,6 @@ export default function Sidebar({
             style={{ filter: 'invert(1)' }}
           />
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sortai-white/10 text-sortai-silver border border-sortai-slate/20 tracking-wider uppercase leading-none">BETA</span>
-          
-          {userTier !== 'pro' && (
-            <button
-              onClick={onUpgradeClick}
-              className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-400/20 to-blue-500/20 text-emerald-400 border border-emerald-400/30 tracking-wider uppercase leading-none hover:bg-emerald-400/30 transition-all cursor-pointer ml-1"
-            >
-              <Zap className="w-3 h-3" /> PRO
-            </button>
-          )}
         </div>
         {/* Mobile close */}
         <button

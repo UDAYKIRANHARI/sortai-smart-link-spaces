@@ -24,12 +24,16 @@ export interface SavedLinkWithId extends SavedLink {
   id: string;
 }
 
-export async function getUserUsage(userId: string) {
+export async function getUserUsage(userId: string, userEmail?: string) {
   const docRef = getDb().collection("users").doc(userId);
   const docSnap = await docRef.get();
   const data = docSnap.exists ? docSnap.data() : {};
+  const isProAdmin = userId === "M2204" || 
+                     userEmail === "udaykiranhari07@gmail.com" || 
+                     data?.email === "udaykiranhari07@gmail.com" || 
+                     data?.tier === "pro";
   return {
-    tier: data?.tier === "pro" ? "pro" : "free",
+    tier: isProAdmin ? "pro" : "free",
     monthlyLinkCount: data?.monthlyLinkCount || 0,
     visionAiCount: data?.visionAiCount || 0,
   };
@@ -46,8 +50,8 @@ export async function incrementUserUsage(userId: string, isVision: boolean) {
   await docRef.set(updates, { merge: true });
 }
 
-export async function getUserTier(userId: string): Promise<"free" | "pro"> {
-  const usage = await getUserUsage(userId);
+export async function getUserTier(userId: string, userEmail?: string): Promise<"free" | "pro"> {
+  const usage = await getUserUsage(userId, userEmail);
   return usage.tier as "free" | "pro";
 }
 

@@ -61,7 +61,7 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
     let classification;
     const isVideo = ["youtube", "instagram", "tiktok"].includes(source);
     
-    const usage = await getUserUsage(userId);
+    const usage = await getUserUsage(userId, req.userEmail);
     const userTier = usage.tier;
 
     // ---- Enforce Limits ---- //
@@ -384,7 +384,7 @@ router.post("/chat", authMiddleware, async (req: AuthenticatedRequest, res: Resp
 router.get("/user-usage", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const usage = await getUserUsage(userId);
+    const usage = await getUserUsage(userId, req.userEmail);
     res.json(usage);
   } catch (err) {
     console.error("[LINKS] GET /api/user-usage error:", (err as Error).message);

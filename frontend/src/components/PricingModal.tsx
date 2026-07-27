@@ -87,9 +87,9 @@ export function PricingModal({ onClose, triggerReason, currentUsage }: PricingMo
         `}
       </style>
 
-      <div className="relative w-full max-w-2xl glass-heavy rounded-2xl overflow-hidden border border-sortai-slate/20 flex flex-col my-8">
+      <div className="relative w-full max-w-2xl glass-heavy rounded-2xl overflow-hidden border border-sortai-slate/20 flex flex-col my-auto max-h-[90vh]">
         {/* Gradient Top Bar */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-500" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-500 shrink-0" />
         
         {/* Close Button */}
         <button
@@ -99,7 +99,7 @@ export function PricingModal({ onClose, triggerReason, currentUsage }: PricingMo
           <X className="w-5 h-5" />
         </button>
 
-        <div className="p-8">
+        <div className="p-5 sm:p-8 overflow-y-auto">
           {/* Header */}
           <div className="flex flex-col items-center text-center mb-8">
             {headerContent.icon}
