@@ -86,7 +86,8 @@ Rules:
 4. Provide 3-6 relevant tags as lowercase keywords.
 5. Write a reason_to_save (1 sentence) explaining why someone might want to save this video.
 6. Set confidence to "high", "medium", or "low".
-7. Return ONLY valid JSON matching the required schema. No markdown, no extra text.`;
+7. CRITICAL: Prioritize the visual content of the frame over any text or title provided. Social media titles often contain unrelated hashtags or clickbait. Base your categorization strictly on what is visibly happening in the video frame.
+8. Return ONLY valid JSON matching the required schema. No markdown, no extra text.`;
 
 export async function analyzeVideoWithVision(url: string, rawMetadataTitle: string): Promise<ClassificationResult> {
   console.log(`[VISION] Processing video URL: ${url}`);
@@ -114,7 +115,7 @@ export async function analyzeVideoWithVision(url: string, rawMetadataTitle: stri
       { 
         role: "user", 
         content: [
-          { type: "text", text: `Classify this video frame. The original page title was: "${rawMetadataTitle}". Return strict JSON.` },
+          { type: "text", text: `Classify this video frame. CRITICAL: Base your decision on what you visually see in the image. Ignore misleading words or hashtags in the title if they don't match the image. The original page title was: "${rawMetadataTitle}". Return strict JSON.` },
           { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Frame}` } }
         ]
       }
