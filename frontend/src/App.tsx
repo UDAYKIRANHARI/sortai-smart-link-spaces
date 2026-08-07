@@ -96,7 +96,7 @@ function AuthenticatedApp({ user, isFeedbackOpen, setIsFeedbackOpen, feedbackMsg
   // Pricing / Usage state
   const [showPricing, setShowPricing] = useState(false);
   const [pricingReason, setPricingReason] = useState<'MONTHLY_LINK_LIMIT' | 'VISION_AI_LIMIT' | 'manual'>('manual');
-  const [userUsage, setUserUsage] = useState({ tier: 'free', monthlyLinkCount: 0, visionAiCount: 0 });
+  const [userUsage, setUserUsage] = useState({ tier: 'loading', monthlyLinkCount: 0, visionAiCount: 0 });
   
   const isAdmin = user?.email === 'udaykiranhari07@gmail.com';
   
