@@ -17,6 +17,7 @@ export interface SavedLink {
   confidence: "high" | "medium" | "low";
   imageUrl?: string;
   thumbnailUrl?: string;
+  savedFrom?: string;
   createdAt: string;
 }
 

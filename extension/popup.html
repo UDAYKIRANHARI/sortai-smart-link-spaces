@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sort AI Saver</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h2>Sort AI</h2>
+      <p class="subtitle">Smart Link Spaces</p>
+    </div>
+
+    <!-- Login View (When Cookie is Missing) -->
+    <div id="login-view">
+      <p class="instruction">Log in to Sort AI to save links.</p>
+      <button id="open-webapp-btn" style="background-color: white; color: black; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" style="width: 16px; height: 16px;">
+        Continue with Google
+      </button>
+    </div>
+
+    <!-- Save Link View -->
+    <div id="save-view" style="display: none;">
+      <div id="url-container">
+        <p class="label">Current URL:</p>
+        <p id="current-url">Loading...</p>
+      </div>
+      <button id="save-btn">Save to Sort AI</button>
+      <p id="save-status"></p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: #0d0d0d;
+  color: #ffffff;
+  width: 320px;
+}
+
+#app {
+  padding: 20px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 22px;
+  background: linear-gradient(90deg, #4f46e5, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #888;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  color: white;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #4f46e5;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: opacity 0.2s;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background-color: transparent;
+  border: 1px solid #333;
+  margin-top: 10px;
+  font-weight: normal;
+}
+
+button.secondary:hover {
+  background-color: #1a1a1a;
+}
+
+.instruction {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 12px;
+}
+
+.label {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 4px;
+}
+
+#current-url {
+  font-size: 13px;
+  word-break: break-all;
+  background: #1a1a1a;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 0 0 16px;
+  border: 1px solid #333;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+#save-status {
+  font-size: 13px;
+  text-align: center;
+  margin-top: 12px;
+  min-height: 18px;
+}
+.status-success { color: #10b981; }
+.status-error { color: #ef4444; }

@@ -331,45 +331,19 @@ export async function classifyLink(
 }
 
 /**
- * Generates an embedding for the given text using Nvidia's NV-EmbedQA model.
- * Produces a 1024-dimensional vector.
+ * Generates an embedding for the given text using Gemini's text-embedding-004 model.
  */
-export async function embedTextWithNvidia(text: string): Promise<number[]> {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) {
-    throw new Error("NVIDIA_API_KEY is not configured in .env");
-  }
-
+export async function generateEmbedding(text: string): Promise<number[]> {
+  const aiClient = getGeminiClient();
   try {
-    const response = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        input: [text],
-        model: "nvidia/nv-embedqa-e5-v5",
-        input_type: "passage"
-      })
+    const response = await aiClient.models.embedContent({
+      model: "text-embedding-004",
+      contents: text
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Nvidia Embed API error ${response.status}: ${errText}`);
-    }
-
-    const data = await response.json() as any;
-    const embedding = data?.data?.[0]?.embedding;
-    
-    if (!embedding || !Array.isArray(embedding)) {
-      throw new Error("Nvidia returned an empty or invalid embedding");
-    }
-
-    return embedding as number[];
+    return response.embeddings[0].values;
   } catch (err) {
-    console.error("[NVIDIA EMBED] Failed to generate embedding:", (err as Error).message);
-    throw err;
+    console.error("[GEMINI] Embedding failed:", (err as Error).message);
+    throw new Error(`Embedding failed: ${(err as Error).message}`);
   }
 }
 
@@ -416,8 +390,7 @@ export function heuristicClassifyLink(metadata: NormalizedMetadata): Classificat
     tags = ["entertainment", "media", "video", "fun"];
     reason = "Saved for casual viewing, entertainment, or leisure.";
     matched = true;
-  }
-  if (containsWord(content, careerKeywords)) {
+  } else if (!matched && containsWord(content, careerKeywords)) {
     space = "Career";
     tags = ["career", "work", "professional", "jobs"];
     reason = "Contains helpful information for career development and professional growth.";
