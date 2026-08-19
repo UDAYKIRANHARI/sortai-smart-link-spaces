@@ -6,16 +6,14 @@ const router = Router();
 
 // Middleware to check if the user is the admin
 const adminMiddleware = (req: AuthenticatedRequest, res: Response, next: () => void) => {
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const allowedAdmins = [
+    process.env.ADMIN_EMAIL,
+    "udaykiranhari07@gmail.com",
+    "hariudaykiran0715@gmail.com"
+  ].filter(Boolean);
   
-  if (!adminEmail) {
-    console.error("[ADMIN] ADMIN_EMAIL is not set in environment variables");
-    res.status(500).json({ error: "Server configuration error" });
-    return;
-  }
-
-  if (req.userEmail !== adminEmail) {
-    console.warn(`[ADMIN] Unauthorized access attempt by user: ${req.userEmail} (expected ${adminEmail})`);
+  if (req.userId !== "M2204" && (!req.userEmail || !allowedAdmins.includes(req.userEmail))) {
+    console.warn(`[ADMIN] Unauthorized access attempt by user: ${req.userEmail || req.userId}`);
     res.status(403).json({ error: "Forbidden: Admin access required" });
     return;
   }

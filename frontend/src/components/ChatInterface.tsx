@@ -124,6 +124,8 @@ interface RecentLink {
 interface ChatInterfaceProps {
   onLinkSaved: () => void;
   recentLinks?: RecentLink[];
+  onShowPricing?: (reason: 'MONTHLY_LINK_LIMIT' | 'VISION_AI_LIMIT' | 'manual') => void;
+  userUsage?: { tier: string; monthlyLinkCount: number; visionAiCount: number };
 }
 
 function isValidUrl(str: string): boolean {
@@ -141,7 +143,7 @@ const EXAMPLE_LINKS = [
   { url: 'https://dev.to/t/javascript', label: 'Try a dev article', icon: '📄' },
 ];
 
-export default function ChatInterface({ onLinkSaved, recentLinks = [] }: ChatInterfaceProps) {
+export default function ChatInterface({ onLinkSaved, recentLinks = [], onShowPricing, userUsage }: ChatInterfaceProps) {
   const { user, getIdToken } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -240,6 +242,21 @@ export default function ChatInterface({ onLinkSaved, recentLinks = [] }: ChatInt
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+        
+        // Intercept paywall errors
+        if (response.status === 403 && errData.code === 'MONTHLY_LINK_LIMIT') {
+          onShowPricing?.('MONTHLY_LINK_LIMIT');
+          setMessages((prev) => prev.filter((m) => m.id !== loadingMsg.id));
+          setIsProcessing(false);
+          return;
+        }
+        if (response.status === 403 && errData.code === 'VISION_AI_LIMIT') {
+          onShowPricing?.('VISION_AI_LIMIT');
+          setMessages((prev) => prev.filter((m) => m.id !== loadingMsg.id));
+          setIsProcessing(false);
+          return;
+        }
+        
         const errMsg = errData.error || errData.details || `Server returned ${response.status}`;
         throw new Error(errMsg);
       }
@@ -372,6 +389,14 @@ export default function ChatInterface({ onLinkSaved, recentLinks = [] }: ChatInt
           <h2 className="font-heading text-sm font-semibold tracking-wide text-sortai-white flex items-center gap-2">
             Link Assistant
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sortai-white/10 text-sortai-silver border border-sortai-slate/20 tracking-wider uppercase leading-none">BETA</span>
+            {userUsage?.tier !== 'pro' && userUsage?.tier !== 'loading' && (
+              <button
+                onClick={() => onShowPricing && onShowPricing('manual')}
+                className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-400/20 to-blue-500/20 text-emerald-400 border border-emerald-400/30 tracking-wider uppercase leading-none hover:bg-emerald-400/30 transition-all cursor-pointer ml-1"
+              >
+                <Zap className="w-3 h-3" /> Upgrade
+              </button>
+            )}
           </h2>
         </div>
         {messages.length > 0 && (

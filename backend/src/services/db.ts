@@ -25,6 +25,38 @@ export interface SavedLinkWithId extends SavedLink {
   id: string;
 }
 
+export async function getUserUsage(userId: string, userEmail?: string) {
+  const docRef = getDb().collection("users").doc(userId);
+  const docSnap = await docRef.get();
+  const data = docSnap.exists ? docSnap.data() : {};
+  const adminEmails = ["udaykiranhari07@gmail.com", "hariudaykiran0715@gmail.com"];
+  const isProAdmin = userId === "M2204" || 
+                     (userEmail && adminEmails.includes(userEmail)) || 
+                     (data?.email && adminEmails.includes(data.email)) || 
+                     data?.tier === "pro";
+  return {
+    tier: isProAdmin ? "pro" : "free",
+    monthlyLinkCount: data?.monthlyLinkCount || 0,
+    visionAiCount: data?.visionAiCount || 0,
+  };
+}
+
+export async function incrementUserUsage(userId: string, isVision: boolean) {
+  const docRef = getDb().collection("users").doc(userId);
+  const updates: any = {
+    monthlyLinkCount: FieldValue.increment(1)
+  };
+  if (isVision) {
+    updates.visionAiCount = FieldValue.increment(1);
+  }
+  await docRef.set(updates, { merge: true });
+}
+
+export async function getUserTier(userId: string, userEmail?: string): Promise<"free" | "pro"> {
+  const usage = await getUserUsage(userId, userEmail);
+  return usage.tier as "free" | "pro";
+}
+
 // ---------------------------------------------------------------------------
 // Firebase Admin initialisation (lazy – runs on first getDb() call so that
 // dotenv has already loaded env vars by the time we read them)
