@@ -23,9 +23,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+      
+      // Update cookie for the browser extension to read
+      if (firebaseUser) {
+        const token = await firebaseUser.getIdToken();
+        document.cookie = `sortai_token=${token}; path=/; max-age=3600; SameSite=Lax`;
+      } else {
+        document.cookie = `sortai_token=; path=/; max-age=0; SameSite=Lax`;
+      }
     });
     return () => unsubscribe();
   }, []);

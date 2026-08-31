@@ -8,6 +8,7 @@ import {
   Zap,
   Clock,
   CheckCircle2,
+  Puzzle,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -29,6 +30,7 @@ export interface LinkData {
   confidence: 'high' | 'medium' | 'low';
   createdAt: string;
   reasonToSave?: string;
+  savedFrom?: string;
 }
 
 interface LinkCardProps {
@@ -173,8 +175,11 @@ export default function LinkCard({ link, onDelete, onMoved }: LinkCardProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-sortai-jet/80 to-transparent" />
           {/* Source badge on thumbnail */}
-          <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${sourceClass}`}>
+          <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${sourceClass} flex items-center gap-1.5`}>
             {sourceLabel}
+            {link.savedFrom === 'extension' && (
+              <Puzzle className="w-3 h-3 text-sortai-pale/80" title="Saved via Extension" />
+            )}
           </span>
         </div>
       )}
@@ -185,8 +190,11 @@ export default function LinkCard({ link, onDelete, onMoved }: LinkCardProps) {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Source (only if no thumbnail) */}
           {!link.thumbnail && (
-            <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border ${sourceClass}`}>
+            <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border ${sourceClass} flex items-center gap-1.5`}>
               {sourceLabel}
+              {link.savedFrom === 'extension' && (
+                <Puzzle className="w-3 h-3 text-sortai-pale/80" title="Saved via Extension" />
+              )}
             </span>
           )}
           {/* Space badge with invisible select overlay for quick changing */}

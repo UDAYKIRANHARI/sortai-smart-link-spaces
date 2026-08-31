@@ -90,6 +90,7 @@ export default function SpaceView({ space, refreshTrigger, onLinkDeleted, onNavi
         confidence: ((item.confidence as string) || 'medium') as 'high' | 'medium' | 'low',
         createdAt: (item.createdAt as string) || new Date().toISOString(),
         reasonToSave: (item.reasonToSave as string) || '',
+        savedFrom: (item.savedFrom as string) || undefined,
       }));
       setLinks(mapped);
     } catch (error) {

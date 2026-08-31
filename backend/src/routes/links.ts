@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
 import { detectSource, extractMetadata } from "../services/scraper";
 import { isYouTubeUrl, getYouTubeMetadata } from "../services/youtube";
-import { classifyLink, heuristicClassifyLink, embedTextWithNvidia } from "../services/gemini";
+import { classifyLink, heuristicClassifyLink, generateEmbedding } from "../services/gemini";
 import { saveLink, getLinks, getSpacesSummary, deleteLink, updateLinkSpace, SavedLink, getUserTier, getUserUsage, incrementUserUsage } from "../services/db";
 import { upsertLinkVector, searchSimilarLinks, deleteLinkVector } from "../services/vectorDb";
 import { analyzeVideoWithVision } from "../services/vision";
@@ -14,7 +14,7 @@ const router = Router();
 // ---------------------------------------------------------------------------
 router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { url } = req.body as { url?: string };
+    const { url, savedFrom } = req.body as { url?: string; savedFrom?: string };
 
     // ---- Validate URL ---- //
     if (!url || typeof url !== "string" || url.trim().length === 0) {
@@ -125,6 +125,7 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
       confidence: classification.confidence,
       imageUrl: metadata.imageUrl || "",
       thumbnailUrl: metadata.thumbnailUrl || "",
+      ...(savedFrom && { savedFrom }),
       createdAt: new Date().toISOString(),
     };
 
@@ -138,7 +139,7 @@ router.post("/links", authMiddleware, async (req: AuthenticatedRequest, res: Res
     // ---- 4. Save Semantic Embedding to Pinecone ---- //
     try {
       const embedText = `${saved.title} ${saved.shortDescription || ""} ${(saved.tags || []).join(" ")}`;
-      const vector = await embedTextWithNvidia(embedText);
+      const vector = await generateEmbedding(embedText);
       await upsertLinkVector(saved.id, vector, {
         userId,
         title: saved.title || "Untitled",
