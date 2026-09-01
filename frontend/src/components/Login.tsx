@@ -404,11 +404,11 @@ export default function Login() {
                   Turning complex AI into a product people actually want to use — from the backend to the user experience.
                 </p>
                 <div className="flex gap-3">
-                  <a href="https://linkedin.com/in/saitharunkuthadi" target="_blank" rel="noopener noreferrer"
+                  <a href="https://www.linkedin.com/in/tharun-kuthadi-94b598360/" target="_blank" rel="noopener noreferrer"
                     className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
                     <Linkedin className="w-4 h-4" />
                   </a>
-                  <a href="https://github.com/saitharunkuthadi" target="_blank" rel="noopener noreferrer"
+                  <a href="https://github.com/shinigami555" target="_blank" rel="noopener noreferrer"
                     className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
                     <Github className="w-4 h-4" />
                   </a>
