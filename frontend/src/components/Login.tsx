@@ -1,199 +1,214 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, Zap, Shield, Globe, ArrowRight, Github, Linkedin, Mail, Layout, Bot, Search } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles, ArrowRight, Github, Linkedin, Mail, Search, Command, Layers, Zap } from 'lucide-react';
+import Hero3D from './Hero3D';
 
 export default function Login() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleLogin = async () => {
     setIsLoading(true);
-    setError('');
     try {
       await login();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err?.message || 'Sign-in failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-sortai-black text-sortai-white font-sans selection:bg-emerald-500/30 overflow-x-hidden">
-      {/* ── Background Effects ── */}
-      <div className="fixed inset-0 gradient-mesh opacity-50 pointer-events-none" />
-      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
-
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-emerald-500/30 overflow-x-hidden">
+      
       {/* ── Navigation ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-heavy border-b border-sortai-slate/10 px-6 py-4 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between mix-blend-difference">
         <div className="flex items-center gap-3">
-          <img src="/SortAi-Logo.png" alt="SortAi Logo" className="h-8 w-auto invert" />
-          <span className="font-heading font-bold text-lg tracking-wide hidden sm:block">SortAi</span>
+          <img src="/SortAi-Logo.png" alt="SortAi Logo" className="h-8 w-auto invert opacity-90" />
+          <span className="font-semibold text-lg tracking-wide hidden sm:block text-white/90">SortAi</span>
         </div>
         <button
           onClick={handleLogin}
           disabled={isLoading}
-          className="px-5 py-2 rounded-xl bg-sortai-white text-sortai-black font-semibold text-sm hover:bg-gray-200 transition-colors flex items-center gap-2"
+          className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-medium text-sm transition-all"
         >
-          {isLoading ? 'Loading...' : 'Sign In'}
-          <ArrowRight className="w-4 h-4" />
+          {isLoading ? 'Connecting...' : 'Sign In'}
         </button>
       </nav>
 
-      {/* ── Hero Section ── */}
-      <section className="relative z-10 pt-32 pb-20 px-6 max-w-7xl mx-auto flex flex-col items-center text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sortai-jet border border-sortai-slate/20 text-[11px] font-medium text-emerald-400 mb-8">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Now with Gemini Vision AI Integration</span>
+      {/* ── Hero Section with 3D ── */}
+      <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        {/* 3D Background */}
+        <Hero3D />
+        
+        {/* Hero Content */}
+        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-emerald-300 mb-8 backdrop-blur-md">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Powered by Gemini Vision AI</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-8 leading-[1.1]">
+              Organize the web, <br className="hidden md:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-blue-300 to-purple-400">
+                without lifting a finger.
+              </span>
+            </h1>
+            
+            <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+              Paste a link. We analyze the content, generate a summary, and auto-sort it into intelligent spaces. Your digital second brain, fully automated.
+            </p>
+
+            <div className="pointer-events-auto">
+              <button
+                onClick={handleLogin}
+                disabled={isLoading}
+                className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white text-black font-semibold text-lg hover:scale-105 transition-all duration-300"
+              >
+                Start using SortAi
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </motion.div>
         </div>
-        
-        <h1 className="font-heading text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
-          Your AI-Powered <br className="hidden md:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
-            Link Intelligence Hub
-          </span>
-        </h1>
-        
-        <p className="text-sortai-silver text-lg md:text-xl max-w-2xl mb-10 leading-relaxed">
-          Stop losing valuable knowledge in endless browser bookmarks. Paste any link, and SortAi automatically categorizes, tags, and organizes it into smart spaces.
-        </p>
 
-        {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm max-w-md">
-            {error}
-          </div>
-        )}
-
-        <button
-          onClick={handleLogin}
-          disabled={isLoading}
-          className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-blue-600 text-white font-bold text-lg hover:shadow-lg hover:shadow-emerald-500/25 transition-all active:scale-95 overflow-hidden"
+        {/* Scroll Indicator */}
+        <motion.div 
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50"
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
-          <span className="relative z-10 flex items-center gap-2">
-            Try SortAi Free
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </span>
-        </button>
-
-        {/* ── Product UI Mockup (Fulfills Google's "Live Product" Requirement) ── */}
-        <div className="mt-20 w-full max-w-5xl relative">
-          <div className="absolute inset-0 bg-gradient-to-t from-sortai-black via-transparent to-transparent z-10 h-full w-full rounded-2xl" />
-          <div className="rounded-2xl border border-sortai-slate/20 bg-sortai-jet shadow-2xl overflow-hidden flex flex-col md:flex-row h-[400px] md:h-[600px] text-left relative">
-            {/* Fake Sidebar */}
-            <div className="hidden md:flex w-64 border-r border-sortai-slate/10 bg-sortai-black/50 p-4 flex-col gap-4">
-              <div className="h-8 w-24 bg-sortai-slate/20 rounded-md mb-4" />
-              <div className="flex items-center gap-3 text-emerald-400 bg-emerald-400/10 px-3 py-2 rounded-lg">
-                <Layout className="w-4 h-4" /> <span className="text-sm font-medium">All Links</span>
-              </div>
-              <div className="flex items-center gap-3 text-sortai-silver px-3 py-2">
-                <Bot className="w-4 h-4" /> <span className="text-sm">Tech (14)</span>
-              </div>
-              <div className="flex items-center gap-3 text-sortai-silver px-3 py-2">
-                <Search className="w-4 h-4" /> <span className="text-sm">Career (8)</span>
-              </div>
-            </div>
-            {/* Fake Main Content */}
-            <div className="flex-1 p-6 md:p-8 bg-sortai-black">
-              <div className="h-10 w-full max-w-md bg-sortai-jet border border-sortai-slate/20 rounded-xl mb-8 flex items-center px-4">
-                <span className="text-sortai-slate text-sm">Paste a URL here...</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Card 1 */}
-                <div className="p-4 rounded-xl border border-sortai-slate/20 bg-sortai-jet">
-                  <div className="h-32 w-full bg-sortai-slate/10 rounded-lg mb-3" />
-                  <div className="h-4 w-3/4 bg-sortai-slate/20 rounded mb-2" />
-                  <div className="h-3 w-1/2 bg-sortai-slate/10 rounded" />
-                </div>
-                {/* Card 2 */}
-                <div className="p-4 rounded-xl border border-sortai-slate/20 bg-sortai-jet">
-                  <div className="h-32 w-full bg-sortai-slate/10 rounded-lg mb-3" />
-                  <div className="h-4 w-5/6 bg-sortai-slate/20 rounded mb-2" />
-                  <div className="h-3 w-2/3 bg-sortai-slate/10 rounded" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <span className="text-xs uppercase tracking-widest font-medium">Scroll to explore</span>
+          <div className="w-[1px] h-10 bg-gradient-to-b from-white/50 to-transparent" />
+        </motion.div>
       </section>
 
-      {/* ── Features Section ── */}
-      <section className="relative z-10 py-24 bg-sortai-black border-t border-sortai-slate/10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">How SortAi Works</h2>
-            <p className="text-sortai-silver max-w-2xl mx-auto">We use state-of-the-art vision and language models to understand what you save, so you don't have to organize it manually.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-6 rounded-2xl bg-sortai-jet border border-sortai-slate/10">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-6">
-                <Zap className="w-6 h-6 text-blue-400" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">AI Classification</h3>
-              <p className="text-sortai-silver text-sm leading-relaxed">Our Gemini integration instantly reads the context of any webpage or YouTube video and categorizes it accurately.</p>
-            </div>
-            <div className="p-6 rounded-2xl bg-sortai-jet border border-sortai-slate/10">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-6">
-                <Shield className="w-6 h-6 text-emerald-400" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Smart Link Spaces</h3>
-              <p className="text-sortai-silver text-sm leading-relaxed">Links are grouped into dynamic spaces like Tech, Career, or Fitness based on semantic meaning, not just folders.</p>
-            </div>
-            <div className="p-6 rounded-2xl bg-sortai-jet border border-sortai-slate/10">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-6">
-                <Globe className="w-6 h-6 text-purple-400" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Rich Previews</h3>
-              <p className="text-sortai-silver text-sm leading-relaxed">We automatically generate high-quality thumbnails, concise summaries, and tags so you know exactly what a link is at a glance.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Team / Operational Transparency Section (Crucial for Google Startup Approval) ── */}
-      <section className="relative z-10 py-24 bg-sortai-jet border-t border-sortai-slate/10">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold mb-16">Built by Builders</h2>
-          
-          <div className="inline-block p-1 rounded-2xl bg-gradient-to-b from-sortai-slate/20 to-transparent">
-            <div className="bg-sortai-black p-8 rounded-xl border border-sortai-slate/10 max-w-sm mx-auto flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-400 to-blue-500 mb-6 p-1">
-                <div className="w-full h-full rounded-full bg-sortai-jet flex items-center justify-center overflow-hidden">
-                  {/* Replace this with an actual photo path if you have one, e.g., /founder.jpg */}
-                  <span className="font-heading font-bold text-3xl text-sortai-white">UK</span>
-                </div>
-              </div>
-              <h3 className="text-xl font-bold">Uday Kiran Hari</h3>
-              <p className="text-emerald-400 text-sm font-medium mb-4">Founder & CEO</p>
-              <p className="text-sortai-silver text-sm mb-6 leading-relaxed text-center">
-                SortAi was built to solve the personal frustration of losing valuable knowledge in endless bookmarks. We use advanced AI to bring order to your digital life.
+      {/* ── Product Showcase ── */}
+      <section className="relative z-10 py-32 px-6 bg-[#050505]">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row"
+          >
+            {/* Minimalist UI Mockup */}
+            <div className="lg:w-1/2 p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-white/10 flex flex-col justify-center">
+              <h2 className="text-3xl font-bold mb-4 tracking-tight">The smartest place for your links.</h2>
+              <p className="text-white/50 mb-8 leading-relaxed">
+                SortAi doesn't just save links. It uses visual AI to look at the webpage or YouTube video, understands the context, and tags it precisely.
               </p>
-              <div className="flex gap-4">
-                <a href="https://linkedin.com/in/uday-kiran-hari" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-sortai-jet hover:bg-sortai-slate/20 transition-colors text-sortai-silver hover:text-white">
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <Zap className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white/90">Instant Context</h4>
+                    <p className="text-sm text-white/50">Auto-generated summaries and tags.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                    <Layers className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white/90">Semantic Sorting</h4>
+                    <p className="text-sm text-white/50">Links are grouped by meaning, not rigid folders.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Visual Abstract Mockup */}
+            <div className="lg:w-1/2 bg-[#0a0a0a] p-8 relative overflow-hidden flex items-center justify-center min-h-[400px]">
+              <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent" />
+              <div className="w-full max-w-sm flex flex-col gap-4 relative z-10">
+                {/* Search Bar */}
+                <div className="h-12 rounded-xl bg-white/5 border border-white/10 flex items-center px-4 gap-3">
+                  <Search className="w-5 h-5 text-white/30" />
+                  <div className="h-4 w-32 bg-white/20 rounded-md" />
+                </div>
+                {/* Link Cards */}
+                <motion.div 
+                  initial={{ x: 50, opacity: 0 }}
+                  whileInView={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="p-4 rounded-xl bg-white/5 border border-white/10"
+                >
+                  <div className="h-24 rounded-lg bg-[#111] mb-3 border border-white/5" />
+                  <div className="h-4 w-3/4 bg-emerald-400/20 rounded mb-2" />
+                  <div className="h-3 w-1/2 bg-white/10 rounded" />
+                </motion.div>
+                <motion.div 
+                  initial={{ x: 50, opacity: 0 }}
+                  whileInView={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="p-4 rounded-xl bg-white/5 border border-white/10"
+                >
+                  <div className="flex gap-2 mb-3">
+                    <span className="px-2 py-1 rounded bg-blue-500/20 text-[10px] text-blue-300">Design</span>
+                    <span className="px-2 py-1 rounded bg-white/10 text-[10px] text-white/50">Inspiration</span>
+                  </div>
+                  <div className="h-4 w-full bg-white/20 rounded mb-2" />
+                  <div className="h-3 w-2/3 bg-white/10 rounded" />
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Operational Transparency / Team ── */}
+      <section className="relative z-10 py-32 bg-[#020202] border-t border-white/5">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-16">Built by Builders.</h2>
+            
+            <div className="inline-flex flex-col items-center p-8 rounded-3xl bg-white/[0.02] border border-white/5 shadow-2xl backdrop-blur-sm">
+              <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-emerald-400 to-blue-500 p-[2px] mb-6">
+                <div className="w-full h-full rounded-full bg-[#050505] flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white tracking-widest">UK</span>
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold mb-1">Uday Kiran Hari</h3>
+              <p className="text-emerald-400 font-medium text-sm mb-6 uppercase tracking-wider">Founder & CEO</p>
+              
+              <p className="text-white/50 text-sm max-w-md leading-relaxed mb-8">
+                SortAi was built to solve the frustration of digital hoarding. We leverage cutting-edge Vision AI to bring effortless order to your knowledge base.
+              </p>
+              
+              <div className="flex gap-3 justify-center">
+                <a href="https://linkedin.com/in/uday-kiran-hari" target="_blank" rel="noopener noreferrer" className="p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white">
                   <Linkedin className="w-5 h-5" />
                 </a>
-                <a href="https://github.com/UDAYKIRANHARI" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-sortai-jet hover:bg-sortai-slate/20 transition-colors text-sortai-silver hover:text-white">
+                <a href="https://github.com/UDAYKIRANHARI" target="_blank" rel="noopener noreferrer" className="p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white">
                   <Github className="w-5 h-5" />
                 </a>
-                <a href="mailto:founder@sortai.dev" className="p-2 rounded-lg bg-sortai-jet hover:bg-sortai-slate/20 transition-colors text-sortai-silver hover:text-white">
+                <a href="mailto:founder@sortai.dev" className="p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white">
                   <Mail className="w-5 h-5" />
                 </a>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="relative z-10 border-t border-sortai-slate/10 bg-sortai-black py-8 text-center text-sortai-slate text-sm">
-        <p>© {new Date().getFullYear()} SortAi. All rights reserved.</p>
-        <div className="flex justify-center gap-4 mt-4">
-          <a href="#" className="hover:text-sortai-white transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-sortai-white transition-colors">Terms of Service</a>
-          <a href="mailto:founder@sortai.dev" className="hover:text-sortai-white transition-colors">Contact</a>
-        </div>
+      <footer className="relative z-10 py-8 border-t border-white/5 bg-[#050505] text-center">
+        <p className="text-white/30 text-xs">© {new Date().getFullYear()} SortAi. All rights reserved.</p>
       </footer>
     </div>
   );
