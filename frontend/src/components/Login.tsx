@@ -6,6 +6,7 @@ import {
   Search, Layers, Zap, Eye, Tag, FileText, FolderOpen,
   Brain, Play, Loader2, Check, ExternalLink
 } from 'lucide-react';
+import StarfieldBackground from './StarfieldBackground';
 
 /* ── Demo Data ── */
 const DEMO_URL = 'https://youtube.com/watch?v=dQw4w9WgXcQ';
@@ -80,6 +81,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-sortai-black text-sortai-white font-sans selection:bg-sortai-silver/30 overflow-x-hidden">
+      {/* ── App Background (starfield + mesh) ── */}
+      <StarfieldBackground />
+      <div className="fixed inset-0 gradient-mesh pointer-events-none z-0" />
 
       {/* ── Nav ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between backdrop-blur-md bg-sortai-black/80 border-b border-sortai-slate/10">
