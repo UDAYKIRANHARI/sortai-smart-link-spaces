@@ -358,32 +358,57 @@ export default function Login() {
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <h2 className="font-heading text-3xl md:text-5xl font-bold tracking-tight mb-16 text-sortai-white">Who's behind this.</h2>
 
-            <div className="inline-flex flex-col items-center p-8 rounded-3xl bg-sortai-jet border border-sortai-slate/10 shadow-2xl shadow-black/30">
-              <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-sortai-slate to-sortai-silver p-[2px] mb-6">
-                <div className="w-full h-full rounded-full bg-sortai-jet flex items-center justify-center">
-                  <span className="text-2xl font-bold text-sortai-white tracking-widest">UK</span>
+            <div className="flex flex-col md:flex-row gap-6 justify-center">
+              {/* Uday Kiran Hari */}
+              <div className="flex-1 max-w-sm p-8 rounded-3xl bg-sortai-jet border border-sortai-slate/10 shadow-2xl shadow-black/30 flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-sortai-slate to-sortai-silver p-[2px] mb-5">
+                  <div className="w-full h-full rounded-full bg-sortai-jet flex items-center justify-center">
+                    <span className="text-xl font-bold text-sortai-white tracking-widest">UK</span>
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold mb-1 text-sortai-white">Uday Kiran Hari</h3>
+                <p className="text-sortai-silver font-medium text-xs mb-4 uppercase tracking-wider">Founder & CEO</p>
+                <p className="text-sortai-slate text-sm leading-relaxed mb-6 text-center">
+                  I kept losing great articles in a mess of bookmarks. So I built the tool I wished existed.
+                </p>
+                <div className="flex gap-3">
+                  <a href="https://linkedin.com/in/uday-kiran-hari" target="_blank" rel="noopener noreferrer"
+                    className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
+                    <Linkedin className="w-4 h-4" />
+                  </a>
+                  <a href="https://github.com/UDAYKIRANHARI" target="_blank" rel="noopener noreferrer"
+                    className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
+                    <Github className="w-4 h-4" />
+                  </a>
+                  <a href="mailto:founder@sortai.dev"
+                    className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
+                    <Mail className="w-4 h-4" />
+                  </a>
                 </div>
               </div>
-              <h3 className="text-2xl font-bold mb-1 text-sortai-white">Uday Kiran Hari</h3>
-              <p className="text-sortai-silver font-medium text-sm mb-6 uppercase tracking-wider">Founder & CEO</p>
 
-              <p className="text-sortai-slate text-sm max-w-md leading-relaxed mb-8">
-                I kept losing great articles and videos in a mess of browser bookmarks. So I built the tool I wished existed — one that actually reads what you save and puts it where it belongs.
-              </p>
-
-              <div className="flex gap-3 justify-center">
-                <a href="https://linkedin.com/in/uday-kiran-hari" target="_blank" rel="noopener noreferrer"
-                  className="p-3 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
-                  <Linkedin className="w-5 h-5" />
-                </a>
-                <a href="https://github.com/UDAYKIRANHARI" target="_blank" rel="noopener noreferrer"
-                  className="p-3 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
-                  <Github className="w-5 h-5" />
-                </a>
-                <a href="mailto:founder@sortai.dev"
-                  className="p-3 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
-                  <Mail className="w-5 h-5" />
-                </a>
+              {/* Sai Tharun Kuthadi */}
+              <div className="flex-1 max-w-sm p-8 rounded-3xl bg-sortai-jet border border-sortai-slate/10 shadow-2xl shadow-black/30 flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-sortai-slate to-sortai-silver p-[2px] mb-5">
+                  <div className="w-full h-full rounded-full bg-sortai-jet flex items-center justify-center">
+                    <span className="text-xl font-bold text-sortai-white tracking-widest">ST</span>
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold mb-1 text-sortai-white">Sai Tharun Kuthadi</h3>
+                <p className="text-sortai-silver font-medium text-xs mb-4 uppercase tracking-wider">Co-Founder</p>
+                <p className="text-sortai-slate text-sm leading-relaxed mb-6 text-center">
+                  Turning complex AI into a product people actually want to use — from the backend to the user experience.
+                </p>
+                <div className="flex gap-3">
+                  <a href="https://linkedin.com/in/saitharunkuthadi" target="_blank" rel="noopener noreferrer"
+                    className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
+                    <Linkedin className="w-4 h-4" />
+                  </a>
+                  <a href="https://github.com/saitharunkuthadi" target="_blank" rel="noopener noreferrer"
+                    className="p-2.5 rounded-full bg-sortai-black hover:bg-sortai-slate/10 transition-colors text-sortai-slate hover:text-sortai-white">
+                    <Github className="w-4 h-4" />
+                  </a>
+                </div>
               </div>
             </div>
           </motion.div>
