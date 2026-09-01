@@ -1,5 +1,5 @@
-const API_BASE_URL = "http://localhost:8080/api";
-const WEB_APP_URL = "http://localhost:5173";
+const API_BASE_URL = "https://api.sortai.dev/api";
+const WEB_APP_URL = "https://sortai.dev";
 
 // DOM Elements
 const loginView = document.getElementById("login-view");
