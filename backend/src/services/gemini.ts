@@ -340,6 +340,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       model: "text-embedding-004",
       contents: text
     });
+    if (!response.embeddings?.[0]?.values) throw new Error("Gemini returned empty embedding");
     return response.embeddings[0].values;
   } catch (err) {
     console.error("[GEMINI] Embedding failed:", (err as Error).message);

@@ -205,7 +205,7 @@ router.get("/links/search", authMiddleware, async (req: AuthenticatedRequest, re
     }
 
     console.log(`[LINKS] Semantic search for user ${userId}: "${query}"`);
-    const vector = await embedTextWithNvidia(query);
+    const vector = await generateEmbedding(query);
     const results = await searchSimilarLinks(userId, vector, 20);
 
     // Map Pinecone metadata to match a lightweight SavedLinkWithId structure
@@ -353,7 +353,7 @@ router.post("/chat", authMiddleware, async (req: AuthenticatedRequest, res: Resp
     console.log(`[CHAT] Query for user ${userId}: ${message}`);
 
     // 1. Embed the query
-    const queryVector = await embedTextWithNvidia(message);
+    const queryVector = await generateEmbedding(message);
 
     // 2. Search Pinecone for top 5 links
     const relevantLinks = await searchSimilarLinks(userId, queryVector, 5);

@@ -178,7 +178,7 @@ export default function LinkCard({ link, onDelete, onMoved }: LinkCardProps) {
           <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${sourceClass} flex items-center gap-1.5`}>
             {sourceLabel}
             {link.savedFrom === 'extension' && (
-              <Puzzle className="w-3 h-3 text-sortai-pale/80" title="Saved via Extension" />
+              <Puzzle className="w-3 h-3 text-sortai-pale/80" aria-label="Saved via Extension" />
             )}
           </span>
         </div>
@@ -193,7 +193,7 @@ export default function LinkCard({ link, onDelete, onMoved }: LinkCardProps) {
             <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border ${sourceClass} flex items-center gap-1.5`}>
               {sourceLabel}
               {link.savedFrom === 'extension' && (
-                <Puzzle className="w-3 h-3 text-sortai-pale/80" title="Saved via Extension" />
+                <Puzzle className="w-3 h-3 text-sortai-pale/80" aria-label="Saved via Extension" />
               )}
             </span>
           )}
