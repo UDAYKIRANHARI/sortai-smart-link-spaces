@@ -393,4 +393,87 @@ router.get("/user-usage", authMiddleware, async (req: AuthenticatedRequest, res:
   }
 });
 
+// ---------------------------------------------------------------------------
+// POST /api/context-surface – proactive context match for browser extension & mobile
+// ---------------------------------------------------------------------------
+router.post("/context-surface", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { url, title } = req.body as { url?: string; title?: string };
+
+    if (!url || typeof url !== "string" || url.trim().length === 0) {
+      res.status(400).json({ error: "URL is required" });
+      return;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url.trim());
+    } catch {
+      res.status(400).json({ error: "Invalid URL" });
+      return;
+    }
+
+    const cleanUrl = parsedUrl.href;
+    const searchContext = `${title || ""} ${parsedUrl.hostname} ${parsedUrl.pathname}`.trim();
+
+    console.log(`[CONTEXT-SURFACE] Checking context for user ${userId}: "${searchContext}"`);
+
+    // 1. Generate query embedding
+    let relevantLinks: any[] = [];
+    try {
+      const queryVector = await generateEmbedding(searchContext);
+      relevantLinks = await searchSimilarLinks(userId, queryVector, 5);
+    } catch (e) {
+      console.warn("[CONTEXT-SURFACE] Vector embedding search failed, falling back to db search:", (e as Error).message);
+      // Fallback: search Firestore links by space/query
+      const allLinks = await getLinks(userId);
+      const host = parsedUrl.hostname.toLowerCase().replace("www.", "");
+      relevantLinks = allLinks.filter(l => {
+        const lHost = (l.url || "").toLowerCase();
+        const lTitle = (l.title || "").toLowerCase();
+        return (lHost.includes(host) || lTitle.includes(searchContext.toLowerCase())) && l.url !== cleanUrl;
+      }).slice(0, 3).map(l => ({
+        id: l.id,
+        score: 0.8,
+        metadata: {
+          title: l.title,
+          url: l.url,
+          space: l.space,
+          shortDescription: l.shortDescription,
+          tags: l.tags,
+          createdAt: l.createdAt
+        }
+      }));
+    }
+
+    // 2. Filter out exact current URL match and low scores
+    const filteredMatches = relevantLinks
+      .filter(match => {
+        const itemUrl = match.metadata?.url || match.url || "";
+        return itemUrl !== cleanUrl;
+      })
+      .slice(0, 3)
+      .map(match => ({
+        id: match.id,
+        title: match.metadata?.title || "Saved Link",
+        url: match.metadata?.url || "",
+        space: match.metadata?.space || "Web links",
+        shortDescription: match.metadata?.shortDescription || "Saved for reference.",
+        tags: Array.isArray(match.metadata?.tags) ? match.metadata.tags : [],
+        score: match.score || 0.8
+      }));
+
+    res.json({
+      hasMatches: filteredMatches.length > 0,
+      matchCount: filteredMatches.length,
+      queryTopic: title || parsedUrl.hostname,
+      highlights: filteredMatches
+    });
+  } catch (err) {
+    console.error("[CONTEXT-SURFACE] Error:", (err as Error).message);
+    res.status(500).json({ error: "Failed to fetch context surface" });
+  }
+});
+
 export default router;

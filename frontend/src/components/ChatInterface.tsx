@@ -19,6 +19,8 @@ import {
   Clock,
 } from 'lucide-react';
 import StarfieldBackground from './StarfieldBackground';
+import { ContextSurfaceBanner } from './ContextSurfaceBanner';
+import { NotificationPrompt } from './NotificationPrompt';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -413,6 +415,10 @@ export default function ChatInterface({ onLinkSaved, recentLinks = [], onShowPri
 
       {/* ── Messages Area ── */}
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 relative z-10">
+        <div className="max-w-2xl mx-auto">
+          <ContextSurfaceBanner getIdToken={getIdToken} apiUrl={API_URL} />
+          <NotificationPrompt getIdToken={getIdToken} apiUrl={API_URL} />
+        </div>
         {messages.length === 0 ? (
           <WelcomeState
             onTryExample={handleTryExample}

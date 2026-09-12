@@ -12,6 +12,7 @@ import cors from "cors";
 import linkRoutes from "./routes/links";
 import adminRoutes from "./routes/admin";
 import stripeRoutes from "./routes/stripe";
+import notificationRoutes from "./routes/notifications";
 import { initializeFirebase } from "./services/db";
 
 // Now that env vars are loaded, we can safely initialize Firebase
@@ -73,6 +74,7 @@ app.get("/health", (_req, res) => {
 // ---------------------------------------------------------------------------
 app.use("/api", linkRoutes);
 app.use("/api", adminRoutes);
+app.use("/api", notificationRoutes);
 
 // ---------------------------------------------------------------------------
 // 404 catch-all
