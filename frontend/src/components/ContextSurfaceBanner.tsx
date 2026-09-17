@@ -8,6 +8,7 @@ export interface ContextMatch {
   space: string;
   shortDescription?: string;
   tags?: string[];
+  createdAt?: string;
 }
 
 export interface ContextSurfaceBannerProps {
@@ -20,7 +21,7 @@ export const ContextSurfaceBanner: React.FC<ContextSurfaceBannerProps> = ({
   apiUrl,
 }) => {
   const [matches, setMatches] = useState<ContextMatch[]>([]);
-  const [topic, setTopic] = useState<string>('Your Saved Highlights');
+  const [topic, setTopic] = useState<string>('Your Recent Saves');
   const [isVisible, setIsVisible] = useState(true);
   const [hasNoLinks, setHasNoLinks] = useState(false);
 
@@ -42,15 +43,24 @@ export const ContextSurfaceBanner: React.FC<ContextSurfaceBannerProps> = ({
 
       const allLinks = await res.json();
       if (Array.isArray(allLinks) && allLinks.length > 0) {
-        // Map top 3 real saved links
-        const formatted: ContextMatch[] = allLinks.slice(0, 3).map((l: any) => ({
+        // Sort by date descending (newest saved links first)
+        const sorted = [...allLinks].sort((a: any, b: any) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        // Map top 3 newest real saved links
+        const formatted: ContextMatch[] = sorted.slice(0, 3).map((l: any) => ({
           id: l.id,
           title: l.title || 'Saved Link',
           url: l.url || '#',
           space: l.space || 'Web links',
           shortDescription: l.shortDescription || 'Saved for later reference.',
           tags: Array.isArray(l.tags) ? l.tags : [],
+          createdAt: l.createdAt,
         }));
+
         setMatches(formatted);
         const topSpace = formatted[0]?.space || 'Saved';
         setTopic(`${topSpace} & recent saves`);
@@ -79,7 +89,7 @@ export const ContextSurfaceBanner: React.FC<ContextSurfaceBannerProps> = ({
               From Your Saved Links
             </span>
             <span className="ml-2 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
-              Quick Highlights
+              Latest Highlights
             </span>
           </div>
         </div>
@@ -99,7 +109,7 @@ export const ContextSurfaceBanner: React.FC<ContextSurfaceBannerProps> = ({
       ) : (
         <>
           <p className="text-xs text-sortai-slate mb-3 leading-relaxed">
-            💡 Quick highlights from your saved library in <span className="text-sortai-silver font-medium">"{topic}"</span>:
+            💡 Quick highlights from your latest saved links in <span className="text-sortai-silver font-medium">"{topic}"</span>:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

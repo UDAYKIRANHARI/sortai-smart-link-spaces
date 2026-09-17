@@ -1,9 +1,9 @@
 import webpush from "web-push";
 import { getDb } from "./db";
 
-// Standard VAPID keys for Web Push Notifications (local & production)
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BGK8bV-4tq98vG_qR1T_wL9O1dY_S8bW0qZ9X2aB7cV5nM3kL8jH9fG6dS4aP2oR1eW0qZ9X2aB7cV5nM3kL8jH";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "eW0qZ9X2aB7cV5nM3kL8jH9fG6dS4aP2oR1";
+// Standard VAPID keys for Web Push Notifications (32-byte base64url encoded)
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BOKkYYWAyAOpCAmk4FEiYb2RpNfNYTp8Li05D_GrycUudX82Ca8mDOElp4ns1Urk0QZ2FotaKVYhBS8e3NckY4w";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "RsoKvYTkQrQdcM6JEeI2g1ih59U3dXAhPIA7aG3CB6M";
 
 try {
   webpush.setVapidDetails(
@@ -11,6 +11,7 @@ try {
     VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY
   );
+  console.log("[NOTIFICATIONS] WebPush VAPID configured successfully");
 } catch (e) {
   console.warn("[NOTIFICATIONS] VAPID initialization warning:", (e as Error).message);
 }
@@ -88,7 +89,7 @@ export async function sendPushToUser(
     } catch (err) {
       console.warn(`[NOTIFICATIONS] Failed to send push to device:`, (err as Error).message);
       failureCount++;
-      // If subscription expired/invalid, remove from Firestore
+      // If subscription expired/invalid (410 Gone / 404 Not Found), clean up
       if ((err as any).statusCode === 410 || (err as any).statusCode === 404) {
         await doc.ref.delete();
       }

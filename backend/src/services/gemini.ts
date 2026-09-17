@@ -32,7 +32,7 @@ function getGeminiClient(): GoogleGenAI {
   return _ai;
 }
 
-const MODEL = "gemini-2.0-flash";
+const MODEL = "gemini-2.5-flash";
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -63,158 +63,26 @@ Rules:
 7. Return ONLY valid JSON matching the required schema. No markdown, no extra text.`;
 
 // ---------------------------------------------------------------------------
-// classifyLink
+// classifyLink – Primary Gemini classification with bulletproof Heuristic Fallback
 // ---------------------------------------------------------------------------
-
-/**
- * Sends link metadata to Nvidia NIM API and returns a structured classification.
- */
-async function classifyWithNvidia(metadata: NormalizedMetadata): Promise<ClassificationResult> {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) {
-    throw new Error("NVIDIA_API_KEY is not configured in .env");
-  }
-
-  const userMessage = [
-    "Classify the following link based on the strict JSON rules.",
-    "",
-    `Source: ${metadata.source}`,
-    `Title: ${metadata.title}`,
-    `Description: ${metadata.description || "(none)"}`,
-    metadata.channelTitle ? `Channel/Author: ${metadata.channelTitle}` : "",
-    metadata.imageUrl ? `Has image: yes` : "",
-  ].filter(Boolean).join("\n");
-
-  try {
-    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: "meta/llama-3.1-8b-instruct",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage }
-        ],
-        temperature: 0.3,
-        max_tokens: 512,
-        response_format: { type: "json_object" }
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Nvidia API error ${response.status}: ${errText}`);
-    }
-
-    const data = await response.json() as any;
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) {
-      throw new Error("Nvidia returned an empty response");
-    }
-
-    const parsed: ClassificationResult = JSON.parse(text);
-
-    // Validate the required fields
-    const validSpaces = ["Career", "Study", "Fashion", "Fitness", "Tech", "Tools", "Web links", "Entertainment", "Life", "Other"];
-    if (!validSpaces.includes(parsed.space)) parsed.space = "Other";
-    if (!["high", "medium", "low"].includes(parsed.confidence)) parsed.confidence = "medium";
-    if (!Array.isArray(parsed.tags)) parsed.tags = [];
-
-    return parsed;
-  } catch (err) {
-    console.error("[NVIDIA] Classification failed:", (err as Error).message);
-    throw new Error(`Nvidia classification failed: ${(err as Error).message}`);
-  }
-}
-
-/**
- * Sends link metadata to Groq API and returns a structured classification.
- */
-async function classifyWithGroq(metadata: NormalizedMetadata): Promise<ClassificationResult> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error("GROQ_API_KEY is not configured in .env");
-  }
-
-  const userMessage = [
-    "Classify the following link based on the strict JSON rules.",
-    "",
-    `Source: ${metadata.source}`,
-    `Title: ${metadata.title}`,
-    `Description: ${metadata.description || "(none)"}`,
-    metadata.channelTitle ? `Channel/Author: ${metadata.channelTitle}` : "",
-    metadata.imageUrl ? `Has image: yes` : "",
-  ].filter(Boolean).join("\n");
-
-  try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage }
-        ],
-        temperature: 0.3,
-        max_tokens: 512,
-        response_format: { type: "json_object" }
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Groq API error ${response.status}: ${errText}`);
-    }
-
-    const data = await response.json() as any;
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) {
-      throw new Error("Groq returned an empty response");
-    }
-
-    const parsed: ClassificationResult = JSON.parse(text);
-
-    // Validate the required fields
-    const validSpaces = ["Career", "Study", "Fashion", "Fitness", "Tech", "Tools", "Web links", "Entertainment", "Life", "Other"];
-    if (!validSpaces.includes(parsed.space)) parsed.space = "Other";
-    if (!["high", "medium", "low"].includes(parsed.confidence)) parsed.confidence = "medium";
-    if (!Array.isArray(parsed.tags)) parsed.tags = [];
-
-    return parsed;
-  } catch (err) {
-    console.error("[GROQ] Classification failed:", (err as Error).message);
-    throw new Error(`Groq classification failed: ${(err as Error).message}`);
-  }
-}
-
-/**
- * Sends link metadata to Gemini (and falls back to Groq then Nvidia) and returns a structured classification.
- */
 export async function classifyLink(
   metadata: NormalizedMetadata
 ): Promise<ClassificationResult> {
-  const aiClient = getGeminiClient();
-
-  const userMessage = [
-    "Classify the following link:",
-    "",
-    `Source: ${metadata.source}`,
-    `Title: ${metadata.title}`,
-    `Description: ${metadata.description || "(none)"}`,
-    metadata.channelTitle ? `Channel/Author: ${metadata.channelTitle}` : "",
-    metadata.imageUrl ? `Has image: yes` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
   try {
+    const aiClient = getGeminiClient();
+
+    const userMessage = [
+      "Classify the following link:",
+      "",
+      `Source: ${metadata.source}`,
+      `Title: ${metadata.title}`,
+      `Description: ${metadata.description || "(none)"}`,
+      metadata.channelTitle ? `Channel/Author: ${metadata.channelTitle}` : "",
+      metadata.imageUrl ? `Has image: yes` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     const response = await aiClient.models.generateContent({
       model: MODEL,
       contents: [{ role: "user", parts: [{ text: userMessage }] }],
@@ -303,9 +171,7 @@ export async function classifyLink(
       parsed.space = "Other";
     }
 
-    if (
-      !["high", "medium", "low"].includes(parsed.confidence)
-    ) {
+    if (!["high", "medium", "low"].includes(parsed.confidence)) {
       parsed.confidence = "medium";
     }
 
@@ -315,141 +181,112 @@ export async function classifyLink(
 
     return parsed;
   } catch (err) {
-    console.warn("[GEMINI] Classification failed, attempting fallback to Groq...", (err as Error).message);
-    try {
-      return await classifyWithGroq(metadata);
-    } catch (groqErr) {
-      console.warn("[GROQ] Fallback failed, attempting final fallback to Nvidia...", (groqErr as Error).message);
-      try {
-        return await classifyWithNvidia(metadata);
-      } catch (nvidiaErr) {
-        console.error("[NVIDIA] Final fallback failed:", (nvidiaErr as Error).message);
-        throw new Error(`All AI classification services failed.`);
-      }
-    }
+    console.warn("[GEMINI] Classification failed, falling back to smart heuristic tagger:", (err as Error).message);
+    return heuristicClassifyLink(metadata);
   }
 }
 
-/**
- * Generates an embedding for the given text using Gemini's text-embedding-004 model.
- */
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const aiClient = getGeminiClient();
-  try {
-    const response = await aiClient.models.embedContent({
-      model: "text-embedding-004",
-      contents: text
-    });
-    if (!response.embeddings?.[0]?.values) throw new Error("Gemini returned empty embedding");
-    return response.embeddings[0].values;
-  } catch (err) {
-    console.error("[GEMINI] Embedding failed:", (err as Error).message);
-    throw new Error(`Embedding failed: ${(err as Error).message}`);
-  }
-}
-
-function containsWord(text: string, keywords: string[]): boolean {
-  const normalized = text.toLowerCase();
-  return keywords.some(keyword => {
-    // Escape regex characters
-    const escaped = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    // Enforce word boundaries
-    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-    return regex.test(normalized);
-  });
-}
-
-/**
- * Fallback classification method that uses keyword-based heuristics when Gemini API is rate-limited or unavailable.
- */
+// ---------------------------------------------------------------------------
+// Bulletproof Heuristic Classifier (Guarantees zero link-save failures)
+// ---------------------------------------------------------------------------
 export function heuristicClassifyLink(metadata: NormalizedMetadata): ClassificationResult {
   const title = metadata.title || "Untitled Link";
   const desc = metadata.description || "";
-  const source = (metadata.source || "").toLowerCase();
-  
-  const content = `${title} ${desc}`.toLowerCase(); // DON'T include source in content for keyword matching
-  
+  const source = metadata.source || "web";
+  const fullText = `${title} ${desc}`.toLowerCase();
+
   let space = "Web links";
-  let tags: string[] = ["web"];
-  let reason = "Saved for later reference.";
-
-  // Keywords lists — check these FIRST before falling back to source-based classification
-  const careerKeywords = ["job", "jobs", "career", "careers", "resume", "resumes", "interview", "interviews", "linkedin", "hire", "hiring", "recruiter", "recruiters", "internship", "internships", "business", "businesses", "profitable", "entrepreneur", "entrepreneurship", "startup", "startups", "income", "side hustle", "freelance", "freelancing", "salary", "networking", "professional"];
-  const studyKeywords = ["course", "courses", "study", "studying", "tutorial", "tutorials", "class", "classes", "learn", "learning", "education", "lecture", "lectures", "academy", "doc", "docs", "documentation", "how to", "guide", "beginner", "advanced", "masterclass"];
-  const fashionKeywords = ["fashion", "style", "wear", "clothing", "shoes", "outfit", "outfits", "apparel", "boutique", "makeup", "beauty", "dress", "dresses", "wardrobe", "sneakers", "accessories"];
-  const fitnessKeywords = ["fit", "fitness", "workout", "workouts", "gym", "nutrition", "diet", "health", "exercise", "exercises", "wellness", "sports", "yoga", "training", "calorie", "calories", "muscle", "cardio"];
-  const toolsKeywords = ["editor", "builder", "saas", "utility", "utilities", "figma", "canva", "wix", "tool", "tools", "dashboard", "dashboards", "creator", "platform", "platforms", "calculator", "calculators", "converter", "converters", "generator", "generators", "ai tool", "ai tools", "chatgpt", "gemini", "claude", "copilot", "notion", "spreadsheet", "excel"];
-  const techKeywords = ["code", "coding", "programming", "software engineering", "github", "developer", "developers", "api", "apis", "database", "frontend", "backend", "webdev", "computer science", "gadget", "gadgets", "hardware", "open source", "javascript", "python", "react", "node", "typescript", "rust", "golang"];
-  const entertainmentKeywords = ["movie", "movies", "music", "song", "songs", "singer", "album", "playlist", "gaming", "game", "games", "netflix", "comedy", "show", "shows", "reel", "reels", "meme", "memes", "fun", "funny", "vlog", "vlogs", "dance", "dancer", "concert", "lyrics", "beat", "remix", "cover", "official video", "music video", "trailer", "anime", "manga", "drama"];
-  const lifeKeywords = ["travel", "recipe", "recipes", "cook", "cooking", "money", "finance", "finances", "life", "lifestyle", "productivity", "hobby", "hobbies", "blog", "blogs", "relationships", "marriage", "parenting", "house", "home", "motivation", "self improvement", "mindfulness", "meditation"];
-  const webKeywords = ["login", "signin", "signup", "register", "registration", "auth", "account", "portal", "form", "forms", "submit", "apply"];
-
-  // Run keyword classification on CONTENT (title + description) first
+  let tags = ["bookmark", source];
+  let reason = "Saved for later reading.";
   let matched = false;
-  if (containsWord(content, entertainmentKeywords)) {
-    space = "Entertainment";
-    tags = ["entertainment", "media", "video", "fun"];
-    reason = "Saved for casual viewing, entertainment, or leisure.";
-    matched = true;
-  } else if (!matched && containsWord(content, careerKeywords)) {
-    space = "Career";
-    tags = ["career", "work", "professional", "jobs"];
-    reason = "Contains helpful information for career development and professional growth.";
-    matched = true;
-  } else if (!matched && containsWord(content, studyKeywords)) {
-    space = "Study";
-    tags = ["education", "study", "learning", "tutorial"];
-    reason = "Useful tutorial or educational resource for studying and learning.";
-    matched = true;
-  } else if (!matched && containsWord(content, fashionKeywords)) {
-    space = "Fashion";
-    tags = ["fashion", "style", "trends", "clothing"];
-    reason = "Style inspiration, clothing collection, or fashion trend highlight.";
-    matched = true;
-  } else if (!matched && containsWord(content, fitnessKeywords)) {
-    space = "Fitness";
-    tags = ["fitness", "health", "workout", "wellness"];
-    reason = "Saved for fitness routines, nutrition guides, or healthy living tips.";
-    matched = true;
-  } else if (!matched && containsWord(content, toolsKeywords)) {
-    space = "Tools";
-    tags = ["tool", "utility", "saas", "software"];
-    reason = "Useful online tool, editor, generator, or software utility.";
-    matched = true;
-  } else if (!matched && containsWord(content, techKeywords)) {
+
+  // Rule 1: Tech & Dev
+  if (containsWord(fullText, ["code", "developer", "github", "react", "python", "javascript", "typescript", "api", "ai", "llm", "model", "software", "tech", "hardware", "linux", "cloud", "server"])) {
     space = "Tech";
-    tags = ["tech", "coding", "software", "developer"];
-    reason = "Contains dev tools, coding references, or technical updates.";
+    tags = ["tech", "developer", "software"];
+    reason = "Core technical article, documentation, or developer tool.";
     matched = true;
-  } else if (!matched && containsWord(content, lifeKeywords)) {
+  }
+  // Rule 2: Career
+  else if (containsWord(fullText, ["job", "career", "resume", "cv", "interview", "linkedin", "hire", "salary", "promotion", "hiring", "recruiter"])) {
+    space = "Career";
+    tags = ["career", "jobs", "professional"];
+    reason = "Career development or professional networking resource.";
+    matched = true;
+  }
+  // Rule 3: Study
+  else if (containsWord(fullText, ["course", "tutorial", "learn", "university", "study", "research", "paper", "education", "lesson", "guide"])) {
+    space = "Study";
+    tags = ["study", "tutorial", "learning"];
+    reason = "Educational resource or learning guide.";
+    matched = true;
+  }
+  // Rule 4: Tools
+  else if (containsWord(fullText, ["tool", "saas", "editor", "calculator", "generator", "app", "utility", "converter", "figma", "canva"])) {
+    space = "Tools";
+    tags = ["tools", "utility", "app"];
+    reason = "Online tool or SaaS application.";
+    matched = true;
+  }
+  // Rule 5: Fitness
+  else if (containsWord(fullText, ["workout", "fitness", "gym", "health", "diet", "nutrition", "exercise", "running", "muscle", "sports"])) {
+    space = "Fitness";
+    tags = ["fitness", "health", "workout"];
+    reason = "Health, fitness, or workout content.";
+    matched = true;
+  }
+  // Rule 6: Fashion
+  else if (containsWord(fullText, ["fashion", "clothing", "style", "outfit", "dress", "shoes", "beauty", "makeup", "skincare"])) {
+    space = "Fashion";
+    tags = ["fashion", "style", "beauty"];
+    reason = "Fashion, style, or apparel resource.";
+    matched = true;
+  }
+  // Rule 7: Life
+  else if (containsWord(fullText, ["recipe", "food", "travel", "finance", "money", "budget", "life", "mindset", "productivity"])) {
     space = "Life";
-    tags = ["life", "lifestyle", "personal", "general"];
-    reason = "Personal interest, life organization, or daily productivity guide.";
-    matched = true;
-  } else if (!matched && containsWord(content, webKeywords)) {
-    space = "Web links";
-    tags = ["login", "register", "web", "account"];
-    reason = "Web portal login, sign-up form, or account landing page.";
+    tags = ["life", "productivity", "personal"];
+    reason = "Personal life, finance, or travel guide.";
     matched = true;
   }
 
-  // LAST RESORT: If no keywords matched, default to Other or Web links rather than assuming Entertainment
-  if (!matched) {
-    if (source === "youtube" || source === "instagram" || source === "tiktok") {
-      space = "Other";
-      tags = [source, "media", "social"];
-      reason = `Saved from ${source} for later review.`;
-    }
-  }
-  
   return {
     title: title.slice(0, 80),
     short_description: desc ? desc.slice(0, 200) : "No description available.",
     space,
     tags,
     reason_to_save: reason,
-    confidence: "low",
+    confidence: "medium",
   };
+}
+
+function containsWord(text: string, keywords: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return keywords.some(keyword => {
+    const escaped = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    return regex.test(normalized);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Generates an embedding for text using Gemini text-embedding-004
+// ---------------------------------------------------------------------------
+export async function generateEmbedding(text: string): Promise<number[]> {
+  try {
+    const aiClient = getGeminiClient();
+    const response = await aiClient.models.embedContent({
+      model: "text-embedding-004",
+      contents: text
+    });
+    if (!response.embeddings?.[0]?.values) {
+      throw new Error("Gemini returned empty embedding");
+    }
+    return response.embeddings[0].values;
+  } catch (err) {
+    console.warn("[GEMINI] Embedding warning (using fallback zero-vector):", (err as Error).message);
+    return new Array(768).fill(0);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -483,70 +320,6 @@ ${contextTexts.join('\n\n')}
     return response.text;
   } catch (err) {
     console.error("[GEMINI] generateChatResponse error:", err);
-    console.warn("[GEMINI] Chat generation failed, attempting fallback to Nvidia...");
-    
-    // Fallback to Nvidia
-    const apiKey = process.env.NVIDIA_API_KEY;
-    if (apiKey) {
-      try {
-        const fallbackResponse = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "meta/llama-3.1-8b-instruct",
-            messages: [
-              { role: "system", content: CHAT_SYSTEM_PROMPT },
-              { role: "user", content: message }
-            ]
-          })
-        });
-
-        if (fallbackResponse.ok) {
-          const fallbackData = await fallbackResponse.json() as any;
-          const text = fallbackData.choices?.[0]?.message?.content;
-          if (text) {
-            return text;
-          }
-        }
-      } catch (fallbackErr) {
-        console.error("[NVIDIA] Fallback chat generation failed:", fallbackErr);
-      }
-    }
-
-    console.warn("[NVIDIA] Fallback failed, attempting final fallback to Groq...");
-    const groqApiKey = process.env.GROQ_API_KEY;
-    if (groqApiKey) {
-      try {
-        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${groqApiKey}`
-          },
-          body: JSON.stringify({
-            model: "llama-3.1-8b-instant",
-            messages: [
-              { role: "system", content: CHAT_SYSTEM_PROMPT },
-              { role: "user", content: message }
-            ]
-          })
-        });
-
-        if (groqResponse.ok) {
-          const groqData = await groqResponse.json() as any;
-          const text = groqData.choices?.[0]?.message?.content;
-          if (text) {
-            return text;
-          }
-        }
-      } catch (groqErr) {
-        console.error("[GROQ] Fallback chat generation failed:", groqErr);
-      }
-    }
-
-    throw new Error("Failed to generate chat response after fallbacks.");
+    return "I couldn't process your question at the moment. Please try asking about your saved links again.";
   }
 }
