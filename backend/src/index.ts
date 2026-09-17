@@ -102,6 +102,11 @@ app.use(
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
+import { startNotificationScheduler } from "./services/notificationScheduler";
+
+// Start dynamic push notification scheduler
+startNotificationScheduler();
+
 app.listen(PORT, () => {
   console.log("=".repeat(50));
   console.log(`  SortAi Backend running on http://localhost:${PORT}`);

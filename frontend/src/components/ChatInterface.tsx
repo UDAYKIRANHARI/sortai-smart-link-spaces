@@ -416,7 +416,7 @@ export default function ChatInterface({ onLinkSaved, recentLinks = [], onShowPri
       {/* ── Messages Area ── */}
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 relative z-10">
         <div className="max-w-2xl mx-auto">
-          <ContextSurfaceBanner getIdToken={getIdToken} apiUrl={API_URL} />
+          <ContextSurfaceBanner getIdToken={getIdToken} apiUrl={API_URL} recentLinks={recentLinks} />
           <NotificationPrompt getIdToken={getIdToken} apiUrl={API_URL} />
         </div>
         {messages.length === 0 ? (

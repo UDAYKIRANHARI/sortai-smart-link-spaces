@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X, ArrowUpRight } from 'lucide-react';
 
-export interface ContextMatch {
+export interface RecentLinkItem {
   id: string;
   title: string;
   url: string;
@@ -14,27 +14,43 @@ export interface ContextMatch {
 export interface ContextSurfaceBannerProps {
   getIdToken: () => Promise<string | null>;
   apiUrl: string;
+  recentLinks?: RecentLinkItem[];
+  refreshTrigger?: number;
 }
 
 export const ContextSurfaceBanner: React.FC<ContextSurfaceBannerProps> = ({
   getIdToken,
   apiUrl,
+  recentLinks = [],
+  refreshTrigger = 0,
 }) => {
-  const [matches, setMatches] = useState<ContextMatch[]>([]);
+  const [matches, setMatches] = useState<RecentLinkItem[]>([]);
   const [topic, setTopic] = useState<string>('Your Recent Saves');
   const [isVisible, setIsVisible] = useState(true);
   const [hasNoLinks, setHasNoLinks] = useState(false);
 
   useEffect(() => {
-    fetchRealUserLinks();
-  }, []);
+    if (recentLinks && recentLinks.length > 0) {
+      // Sort newest saved links first
+      const sorted = [...recentLinks].sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      const top3 = sorted.slice(0, 3);
+      setMatches(top3);
+      setTopic(`${top3[0]?.space || 'Saved'} & recent saves`);
+      setHasNoLinks(false);
+    } else {
+      fetchRealUserLinks();
+    }
+  }, [recentLinks, refreshTrigger]);
 
   const fetchRealUserLinks = async () => {
     try {
       const token = await getIdToken();
       if (!token) return;
 
-      // Fetch user's real saved links
       const res = await fetch(`${apiUrl}/api/links`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -43,15 +59,13 @@ export const ContextSurfaceBanner: React.FC<ContextSurfaceBannerProps> = ({
 
       const allLinks = await res.json();
       if (Array.isArray(allLinks) && allLinks.length > 0) {
-        // Sort by date descending (newest saved links first)
         const sorted = [...allLinks].sort((a: any, b: any) => {
           const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return timeB - timeA;
         });
 
-        // Map top 3 newest real saved links
-        const formatted: ContextMatch[] = sorted.slice(0, 3).map((l: any) => ({
+        const formatted: RecentLinkItem[] = sorted.slice(0, 3).map((l: any) => ({
           id: l.id,
           title: l.title || 'Saved Link',
           url: l.url || '#',
